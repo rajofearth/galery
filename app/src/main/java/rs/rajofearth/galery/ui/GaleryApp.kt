@@ -9,26 +9,22 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,6 +54,8 @@ import rs.rajofearth.galery.data.MediaItem
 import rs.rajofearth.galery.data.MediaStoreMediaRepository
 import rs.rajofearth.galery.ui.theme.GaleryTheme
 
+private const val NO_VIEWER = -1
+
 private data class GaleryTab(
     val labelRes: Int,
     val icon: ImageVector,
@@ -70,12 +68,14 @@ private val tabs = listOf(
     GaleryTab(R.string.favorites, Icons.Filled.FavoriteBorder, R.string.favorites_empty),
 )
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun GaleryApp() {
     val context = LocalContext.current
     val repository = remember { MediaStoreMediaRepository(context.applicationContext) }
 
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    var viewerIndex by rememberSaveable { mutableIntStateOf(NO_VIEWER) }
     var askedBefore by rememberSaveable { mutableStateOf(false) }
     var accessGranted by rememberSaveable { mutableStateOf(mediaAccessGranted(context)) }
 
@@ -106,26 +106,58 @@ fun GaleryApp() {
         }
     }
 
+    val openedIndex = viewerIndex.takeIf { it != NO_VIEWER && it < mediaItems.size }
+
     GaleryTheme {
         MediaAccessGate(
             state = accessState,
             onRequestAccess = { requestAccess.launch(mediaPermissions()) },
             onOpenSettings = { openSettings.launch(settingsIntent(context)) },
         ) {
-            GaleryScreen(
-                selectedTab = tabs[selectedIndex],
-                onTabSelected = { tab -> selectedIndex = tabs.indexOf(tab) },
-                mediaItems = mediaItems,
-            )
+            SharedTransitionLayout {
+                Box(Modifier.fillMaxSize()) {
+                    AnimatedVisibility(visible = true, label = "All media") {
+                        GaleryScreen(
+                            selectedTab = tabs[selectedIndex],
+                            onTabSelected = { tab -> selectedIndex = tabs.indexOf(tab) },
+                            mediaItems = mediaItems,
+                            onItemClick = { viewerIndex = it },
+                            openedKey = openedIndex?.let { mediaItems[it].key },
+                            scopes = MediaTransitionScopes(
+                                sharedTransition = this@SharedTransitionLayout,
+                                visibility = this@AnimatedVisibility,
+                            ),
+                        )
+                    }
+
+                    AnimatedVisibility(visible = openedIndex != null, label = "Viewer") {
+                        if (openedIndex != null) {
+                            MediaViewer(
+                                items = mediaItems,
+                                initialIndex = openedIndex,
+                                onDismiss = { viewerIndex = NO_VIEWER },
+                                scopes = MediaTransitionScopes(
+                                    sharedTransition = this@SharedTransitionLayout,
+                                    visibility = this@AnimatedVisibility,
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun GaleryScreen(
     selectedTab: GaleryTab,
     onTabSelected: (GaleryTab) -> Unit,
     mediaItems: List<MediaItem>,
+    onItemClick: (Int) -> Unit,
+    openedKey: String?,
+    scopes: MediaTransitionScopes,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -162,47 +194,29 @@ private fun GaleryScreen(
             .fillMaxSize()
             .padding(innerPadding)
         when (selectedTab) {
-            tabs[0] -> AllMediaContent(
-                items = mediaItems,
-                modifier = contentModifier.padding(horizontal = 16.dp),
-            )
+            tabs[0] -> {
+                if (mediaItems.isEmpty()) {
+                    EmptyView(
+                        icon = tabs[0].icon,
+                        text = stringResource(R.string.all_media_no_items),
+                        modifier = contentModifier.padding(horizontal = 24.dp),
+                    )
+                } else {
+                    MosaicView(
+                        items = mediaItems,
+                        onItemClick = onItemClick,
+                        openedKey = openedKey,
+                        scopes = scopes,
+                        modifier = contentModifier,
+                    )
+                }
+            }
 
             else -> EmptyView(
                 icon = selectedTab.icon,
                 text = stringResource(selectedTab.emptyTextRes),
                 modifier = contentModifier.padding(horizontal = 24.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun AllMediaContent(items: List<MediaItem>, modifier: Modifier = Modifier) {
-    if (items.isEmpty()) {
-        EmptyView(
-            icon = tabs[0].icon,
-            text = stringResource(R.string.all_media_no_items),
-            modifier = modifier,
-        )
-        return
-    }
-
-    LazyColumn(modifier = modifier) {
-        items(items, key = { it.id }) { item ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    imageVector = if (item.isVideo) Icons.Filled.Movie else Icons.Filled.Image,
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(16.dp))
-                Text(text = item.displayName, style = MaterialTheme.typography.bodyLarge)
-            }
-            HorizontalDivider()
         }
     }
 }
@@ -242,11 +256,35 @@ private fun settingsIntent(context: Context): Intent =
         Uri.parse("package:${context.packageName}"),
     )
 
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun PreviewHost(content: @Composable (MediaTransitionScopes) -> Unit) {
+    SharedTransitionLayout {
+        AnimatedVisibility(visible = true) {
+            content(
+                MediaTransitionScopes(
+                    sharedTransition = this@SharedTransitionLayout,
+                    visibility = this@AnimatedVisibility,
+                ),
+            )
+        }
+    }
+}
+
 @Preview
 @Composable
 private fun AllMediaPreview() {
     GaleryTheme {
-        GaleryScreen(selectedTab = tabs[0], onTabSelected = {}, mediaItems = emptyList())
+        PreviewHost { scopes ->
+            GaleryScreen(
+                selectedTab = tabs[0],
+                onTabSelected = {},
+                mediaItems = emptyList(),
+                onItemClick = {},
+                openedKey = null,
+                scopes = scopes,
+            )
+        }
     }
 }
 
@@ -254,7 +292,16 @@ private fun AllMediaPreview() {
 @Composable
 private fun AlbumsPreview() {
     GaleryTheme {
-        GaleryScreen(selectedTab = tabs[1], onTabSelected = {}, mediaItems = emptyList())
+        PreviewHost { scopes ->
+            GaleryScreen(
+                selectedTab = tabs[1],
+                onTabSelected = {},
+                mediaItems = emptyList(),
+                onItemClick = {},
+                openedKey = null,
+                scopes = scopes,
+            )
+        }
     }
 }
 
@@ -262,6 +309,15 @@ private fun AlbumsPreview() {
 @Composable
 private fun FavoritesDarkPreview() {
     GaleryTheme(darkTheme = true, dynamicColor = false) {
-        GaleryScreen(selectedTab = tabs[2], onTabSelected = {}, mediaItems = emptyList())
+        PreviewHost { scopes ->
+            GaleryScreen(
+                selectedTab = tabs[2],
+                onTabSelected = {},
+                mediaItems = emptyList(),
+                onItemClick = {},
+                openedKey = null,
+                scopes = scopes,
+            )
+        }
     }
 }

@@ -37,6 +37,8 @@ class MediaStoreMediaRepository(private val context: Context) {
             MediaStore.MediaColumns._ID,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.WIDTH,
+            MediaStore.MediaColumns.HEIGHT,
             pathColumn,
         )
         val candidates = mutableListOf<Candidate>()
@@ -50,6 +52,8 @@ class MediaStoreMediaRepository(private val context: Context) {
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
             val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
             val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATE_ADDED)
+            val widthIndex = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
+            val heightIndex = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
             val pathIndex = cursor.getColumnIndexOrThrow(pathColumn)
 
             while (cursor.moveToNext()) {
@@ -60,6 +64,8 @@ class MediaStoreMediaRepository(private val context: Context) {
                         displayName = cursor.getString(nameIndex).orEmpty(),
                         isVideo = isVideo,
                         dateAdded = cursor.getLong(dateIndex),
+                        width = if (widthIndex >= 0) cursor.getInt(widthIndex) else 0,
+                        height = if (heightIndex >= 0) cursor.getInt(heightIndex) else 0,
                     ),
                     folder = folder,
                 )

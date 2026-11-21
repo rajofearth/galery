@@ -14,4 +14,5 @@
     <string name="media_access_retry">Retry</string>
     <string name="media_access_open_settings">Open settings</string>
     <string name="all_media_no_items">No photos or videos found</string>
+    <string name="viewer_close">Close</string>
 </resources>

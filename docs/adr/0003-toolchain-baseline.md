@@ -18,6 +18,6 @@ The build uses Kotlin 2.3.20 with the Compose compiler plugin `org.jetbrains.kot
 
 ## Validation
 
-`:app:assembleDebug` and `:app:installDebug` pass with these versions on the connected device. AGP 9.5.2 cannot select the `android-37.2` platform that BOM 2026.11.01 needs, so ADR-0002 records the older BOM plus explicit Material 3 1.5.0.
+`:app:assembleDebug` and `:app:installDebug` pass with these versions on the connected device. BOM 2026.11.01 requires compileSdk 37.1 or later. The SDK has `android-37.2`, but AGP 9.5.2 cannot select a minor-version platform, so ADR-0002 records the older BOM plus explicit Material 3 1.5.0.
 
 **Sources:** [Compose compiler](https://developer.android.com/jetpack/compose/compiler) · [AGP 9.5 release notes](https://developer.android.com/build/releases/agp-9-5-0-release-notes) · [Kotlin releases](https://kotlinlang.org/docs/releases.html)

@@ -9,7 +9,7 @@ Research date: 21 November 2026.
 | ADR | Decision |
 | --- | --- |
 | [0001](0001-compose-over-xml.md) | Use Jetpack Compose with Kotlin; no XML layouts |
-| [0002](0002-compose-bom-and-material3-1-5.md) | Compose BOM 2026.11.01 resolves Material 3 1.5.0 stable |
+| [0002](0002-compose-bom-and-material3-1-5.md) | Compose BOM 2026.08.00 with explicit Material 3 1.5.0 |
 | [0003](0003-toolchain-baseline.md) | Toolchain baseline: Kotlin 2.3.20, AGP 9.5.2, JDK 17, SDK 37 |
 | [0004](0004-material-expressive-theme-at-root.md) | Wrap the app in `MaterialExpressiveTheme`, not `MaterialTheme` |
 | [0005](0005-spring-motion-scheme.md) | Use spring-based `MotionScheme.expressive()` |

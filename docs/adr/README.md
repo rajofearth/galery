@@ -2,7 +2,7 @@
 
 Research-phase decisions for a Kotlin and Jetpack Compose app using Material 3 Expressive.
 
-All decisions are `proposed`. This work was done without an Android app and without Android Studio, so nothing below has been compile-verified. Promote an ADR to `accepted` only after a real project builds against the pinned versions.
+ADRs 0001 to 0009 and 0011 are `accepted`; the shell builds and installs against the recorded versions. ADRs 0010 and 0012 remain `proposed`. Promote an ADR to `accepted` only after a real project builds against the pinned versions.
 
 Research date: 21 November 2026.
 
@@ -10,7 +10,7 @@ Research date: 21 November 2026.
 | --- | --- |
 | [0001](0001-compose-over-xml.md) | Use Jetpack Compose with Kotlin; no XML layouts |
 | [0002](0002-compose-bom-and-material3-1-5.md) | Compose BOM 2026.11.01 resolves Material 3 1.5.0 stable |
-| [0003](0003-toolchain-baseline.md) | Toolchain baseline: Kotlin 2.4.21, AGP 9.5.x, JDK 17, SDK 37 |
+| [0003](0003-toolchain-baseline.md) | Toolchain baseline: Kotlin 2.3.20, AGP 9.5.2, JDK 17, SDK 37 |
 | [0004](0004-material-expressive-theme-at-root.md) | Wrap the app in `MaterialExpressiveTheme`, not `MaterialTheme` |
 | [0005](0005-spring-motion-scheme.md) | Use spring-based `MotionScheme.expressive()` |
 | [0006](0006-dynamic-color-with-fallback.md) | Wallpaper-derived dynamic colour with an explicit fallback |

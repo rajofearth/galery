@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Wrap the app in MaterialExpressiveTheme, not MaterialTheme

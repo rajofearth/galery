@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Emphasized type scale and expanded shape system

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Wallpaper-derived dynamic colour with an explicit fallback

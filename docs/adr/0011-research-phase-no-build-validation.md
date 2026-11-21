@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Research-only constraint: decisions must be build-verified later

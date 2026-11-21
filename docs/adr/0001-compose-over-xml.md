@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Use Jetpack Compose with Kotlin; no XML layouts

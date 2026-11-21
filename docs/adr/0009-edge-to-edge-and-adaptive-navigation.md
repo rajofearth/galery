@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Edge-to-edge and adaptive navigation from the start

@@ -4,7 +4,7 @@ A local photo and video gallery for Android. No account, no cloud, no ads. Built
 
 ## Status
 
-Design phase. The repository holds the product glossary, deferred scope, and architecture decision records in `docs/adr/`. Implementation has not started.
+The buildable shell is in place. The repository also holds the product glossary, deferred scope, and architecture decision records in `docs/adr/`. Media access, the mosaic, and the Viewer are still to come.
 
 ## Planned features
 

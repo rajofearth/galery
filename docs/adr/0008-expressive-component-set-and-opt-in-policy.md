@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Stable expressive components first, isolated experimental opt-ins

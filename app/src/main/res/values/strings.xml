@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Galery</string>
+    <string name="search">Search</string>
+    <string name="all_media">All media</string>
+    <string name="albums">Albums</string>
+    <string name="favorites">Favorites</string>
+    <string name="all_media_empty">Grant access to see your photos and videos</string>
+    <string name="albums_empty">Grant access to see your albums</string>
+    <string name="favorites_empty">Open a media item to mark it as a favorite</string>
+</resources>

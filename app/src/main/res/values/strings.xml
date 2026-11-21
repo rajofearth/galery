@@ -8,4 +8,10 @@
     <string name="all_media_empty">Grant access to see your photos and videos</string>
     <string name="albums_empty">Grant access to see your albums</string>
     <string name="favorites_empty">Open a media item to mark it as a favorite</string>
+    <string name="media_access_title">Media access needed</string>
+    <string name="media_access_explanation">Galery needs access to your photos and videos to show them here. Your media stays on this device.</string>
+    <string name="media_access_grant">Grant access</string>
+    <string name="media_access_retry">Retry</string>
+    <string name="media_access_open_settings">Open settings</string>
+    <string name="all_media_no_items">No photos or videos found</string>
 </resources>

@@ -33,14 +33,16 @@ class MediaStoreMediaRepository(private val context: Context) {
 
     private fun query(contentUri: Uri, isVideo: Boolean): List<Candidate> {
         val pathColumn = pathColumn()
-        val projection = arrayOf(
-            MediaStore.MediaColumns._ID,
-            MediaStore.MediaColumns.DISPLAY_NAME,
-            MediaStore.MediaColumns.DATE_ADDED,
-            MediaStore.MediaColumns.WIDTH,
-            MediaStore.MediaColumns.HEIGHT,
-            pathColumn,
-        )
+        val durationColumn = if (isVideo) MediaStore.Video.Media.DURATION else null
+        val projection = buildList {
+            add(MediaStore.MediaColumns._ID)
+            add(MediaStore.MediaColumns.DISPLAY_NAME)
+            add(MediaStore.MediaColumns.DATE_ADDED)
+            add(MediaStore.MediaColumns.WIDTH)
+            add(MediaStore.MediaColumns.HEIGHT)
+            add(pathColumn)
+            if (durationColumn != null) add(durationColumn)
+        }.toTypedArray()
         val candidates = mutableListOf<Candidate>()
         context.contentResolver.query(
             contentUri,
@@ -55,6 +57,7 @@ class MediaStoreMediaRepository(private val context: Context) {
             val widthIndex = cursor.getColumnIndex(MediaStore.MediaColumns.WIDTH)
             val heightIndex = cursor.getColumnIndex(MediaStore.MediaColumns.HEIGHT)
             val pathIndex = cursor.getColumnIndexOrThrow(pathColumn)
+            val durationIndex = if (durationColumn != null) cursor.getColumnIndex(durationColumn) else -1
 
             while (cursor.moveToNext()) {
                 val folder = folderOf(cursor.getString(pathIndex).orEmpty())
@@ -66,6 +69,7 @@ class MediaStoreMediaRepository(private val context: Context) {
                         dateAdded = cursor.getLong(dateIndex),
                         width = if (widthIndex >= 0) cursor.getInt(widthIndex) else 0,
                         height = if (heightIndex >= 0) cursor.getInt(heightIndex) else 0,
+                        durationMs = if (durationIndex >= 0) cursor.getLong(durationIndex) else 0L,
                     ),
                     folder = folder,
                 )

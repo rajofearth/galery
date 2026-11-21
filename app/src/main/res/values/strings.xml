@@ -15,4 +15,8 @@
     <string name="media_access_open_settings">Open settings</string>
     <string name="all_media_no_items">No photos or videos found</string>
     <string name="viewer_close">Close</string>
+    <string name="viewer_play">Play</string>
+    <string name="viewer_pause">Pause</string>
+    <string name="viewer_unmute">Unmute</string>
+    <string name="viewer_mute">Mute</string>
 </resources>

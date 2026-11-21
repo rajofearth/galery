@@ -11,9 +11,16 @@ data class MediaItem(
     val dateAdded: Long,
     val width: Int = 0,
     val height: Int = 0,
+    val durationMs: Long = 0L,
 ) {
     val aspectRatio: Float
         get() = if (width > 0 && height > 0) width.toFloat() / height else 1f
+
+    val hasDurationBadge: Boolean
+        get() = isVideo
+
+    val durationLabel: String
+        get() = if (durationMs > 0L) formatDuration(durationMs) else UNKNOWN_DURATION
 
     val key: String
         get() = "${if (isVideo) "v" else "i"}-$id"
@@ -24,4 +31,8 @@ data class MediaItem(
             else MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             id,
         )
+
+    companion object {
+        const val UNKNOWN_DURATION = "--:--"
+    }
 }

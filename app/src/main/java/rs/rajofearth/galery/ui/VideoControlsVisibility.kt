@@ -1,18 +1,8 @@
 package rs.rajofearth.galery.ui
 
-data class VideoControlsVisibility(
-    val lastInteractionMs: Long,
-    val nowMs: Long,
-    val isPlaying: Boolean = true,
-) {
-    val isVisible: Boolean
-        get() = (nowMs - lastInteractionMs) < timeoutMs
+internal object VideoControlsVisibility {
+    const val VISIBLE_DURATION_MS = 3_000L
 
-    private val timeoutMs: Long
-        get() = if (isPlaying) VISIBLE_DURATION_MS else PAUSED_VISIBLE_DURATION_MS
-
-    companion object {
-        const val VISIBLE_DURATION_MS = 3_000L
-        const val PAUSED_VISIBLE_DURATION_MS = 2_000L
-    }
+    fun hideAfter(isPlaying: Boolean, scrubbing: Boolean, timeoutMs: Long): Long? =
+        if (isPlaying && !scrubbing) timeoutMs else null
 }

@@ -9,7 +9,7 @@ The application itself. The single 'l' in the name is intentional. It is not a c
 _Avoid_: Gallery, app, photo app, library
 
 **Media item**:
-One photo or video that Gallery presents. Use this when the kind of media does not matter.
+One photo or video that Galery presents. Use this when the kind of media does not matter.
 _Avoid_: File, asset, media file
 
 **Photo**:

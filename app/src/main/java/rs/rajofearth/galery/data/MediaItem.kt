@@ -1,8 +1,7 @@
 package rs.rajofearth.galery.data
 
-import android.content.ContentUris
 import android.net.Uri
-import android.provider.MediaStore
+import androidx.core.net.toUri
 
 data class MediaItem(
     val id: Long,
@@ -12,6 +11,12 @@ data class MediaItem(
     val width: Int = 0,
     val height: Int = 0,
     val durationMs: Long = 0L,
+    val dateTaken: Long = 0L,
+    val sizeBytes: Long = -1L,
+    val relativePath: String = "",
+    val filePath: String? = null,
+    val mimeType: String? = null,
+    val volumeName: String = "external",
 ) {
     val aspectRatio: Float
         get() = if (width > 0 && height > 0) width.toFloat() / height else 1f
@@ -23,16 +28,24 @@ data class MediaItem(
         get() = if (durationMs > 0L) formatDuration(durationMs) else UNKNOWN_DURATION
 
     val key: String
-        get() = "${if (isVideo) "v" else "i"}-$id"
+        get() = "${mediaCollectionUri(volumeName, isVideo)}/$id"
 
     val contentUri: Uri
-        get() = ContentUris.withAppendedId(
-            if (isVideo) MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-            else MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            id,
-        )
+        get() = key.toUri()
+
+    val dateMillis: Long
+        get() = if (dateTaken > 0L) dateTaken else dateAdded * 1_000L
+
+    val albumKey: String
+        get() = "$volumeName/${relativePath.trim('/')}"
+
+    val albumName: String
+        get() = relativePath.trim('/').substringAfterLast('/')
 
     companion object {
         const val UNKNOWN_DURATION = "--:--"
     }
 }
+
+internal fun mediaCollectionUri(volumeName: String, isVideo: Boolean): String =
+    "content://media/$volumeName/${if (isVideo) "video" else "images"}/media"

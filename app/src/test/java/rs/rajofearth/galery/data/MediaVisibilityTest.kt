@@ -2,9 +2,15 @@ package rs.rajofearth.galery.data
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class MediaVisibilityTest {
+    @get:Rule
+    val storage = TemporaryFolder()
+
     @Test
     fun `keeps an ordinary photo in a visible folder`() {
         assertTrue(
@@ -36,6 +42,27 @@ class MediaVisibilityTest {
                 nomediaFolders = setOf("DCIM/Private/"),
             ),
         )
+    }
+
+    @Test
+    fun `excludes media nested under a hidden folder`() {
+        assertFalse(MediaVisibility.isVisible("photo.jpg", "DCIM/.private/subfolder/", emptySet()))
+    }
+
+    @Test
+    fun `a nomedia file in the storage root hides descendants`() {
+        assertFalse(MediaVisibility.isVisible("photo.jpg", "DCIM/Camera/", setOf("/")))
+    }
+
+    @Test
+    fun `a nomedia marker hides subfolders but leaves siblings visible`() {
+        val nested = storage.newFolder("Private", "Nested")
+        val visible = storage.newFolder("Public")
+        File(nested.parentFile, ".nomedia").writeText("")
+        val cache = mutableMapOf<File, Boolean>()
+
+        assertTrue(MediaVisibility.hasNomediaAncestor(nested, cache))
+        assertFalse(MediaVisibility.hasNomediaAncestor(visible, cache))
     }
 
     @Test

@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="timeline_years">Years</string>
+    <string name="timeline_months">Months</string>
+    <string name="timeline_days">Days</string>
+    <string name="timeline_browse">Browse by date</string>
+    <string name="timeline_close">Close timeline</string>
+    <string name="timeline_undated">Unknown date</string>
+    <string name="filter_media">Filter media</string>
+    <string name="filter_videos">Videos</string>
+    <string name="search_photos_hint">Names, albums, dates</string>
+    <string name="album_shortcuts">Quick access</string>
+    <string name="album_folders">Device folders</string>
+    <string name="photos_title">Photos</string>
+    <string name="photo_date_unknown">Date unknown</string>
+    <string name="trash_album">Trash</string>
+    <string name="trash_empty">Trash is empty</string>
+    <string name="restore_media">Restore</string>
+    <string name="apply_sort">Apply</string>
     <string name="app_name">Galery</string>
     <string name="search">Search</string>
     <string name="all_media">All media</string>
     <string name="albums">Albums</string>
     <string name="favorites">Favorites</string>
-    <string name="all_media_empty">Grant access to see your photos and videos</string>
-    <string name="albums_empty">Grant access to see your albums</string>
+    <string name="albums_empty">Albums appear when folders contain photos or videos</string>
     <string name="favorites_empty">Open a media item to mark it as a favorite</string>
     <string name="media_access_title">Media access needed</string>
     <string name="media_access_explanation">Galery needs access to your photos and videos to show them here. Your media stays on this device.</string>
@@ -19,4 +35,36 @@
     <string name="viewer_pause">Pause</string>
     <string name="viewer_unmute">Unmute</string>
     <string name="viewer_mute">Mute</string>
+    <string name="viewer_seek">Playback position</string>
+    <string name="viewer_replay">Replay</string>
+    <string name="viewer_add_favorite">Add to Favorites</string>
+    <string name="viewer_remove_favorite">Remove from Favorites</string>
+    <string name="show_grid">Switch to Grid</string>
+    <string name="show_mosaic">Switch to Mosaic</string>
+    <string name="sort_media">Sort</string>
+    <string name="sort_date">Date</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_size">Size</string>
+    <string name="sort_ascending">Ascending</string>
+    <string name="sort_descending">Descending</string>
+    <string name="no_search_results">No matches</string>
+    <string name="media_load_error">Couldn’t load photos and videos</string>
+    <string name="clear_search">Clear search</string>
+    <string name="device_storage">Device storage</string>
+    <string name="go_back">Go back</string>
+    <string name="select_item">Select item</string>
+    <plurals name="selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="select_all">Select all</string>
+    <string name="clear_selection">Clear selection</string>
+    <string name="share_selection">Share</string>
+    <string name="trash_selection">Move to trash</string>
+    <string name="selection_details">Details</string>
+    <string name="more_actions">More actions</string>
+    <plurals name="album_item_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
 </resources>

@@ -27,6 +27,14 @@ data class ViewerZoomState(
             copy(dismissY = (dismissY + dy).coerceAtLeast(0f))
         }
 
+    fun boundPan(width: Int, height: Int, aspect: Float): ViewerZoomState {
+        val fittedWidth = minOf(width.toFloat(), height * aspect)
+        val fittedHeight = fittedWidth / aspect
+        val limitX = ((fittedWidth * scale - width) / 2f).coerceAtLeast(0f)
+        val limitY = ((fittedHeight * scale - height) / 2f).coerceAtLeast(0f)
+        return copy(offsetX = offsetX.coerceIn(-limitX, limitX), offsetY = offsetY.coerceIn(-limitY, limitY))
+    }
+
     fun toggleDoubleTap(): ViewerZoomState =
         if (scale > MIN_SCALE) {
             copy(scale = MIN_SCALE, offsetX = 0f, offsetY = 0f, dismissY = 0f)

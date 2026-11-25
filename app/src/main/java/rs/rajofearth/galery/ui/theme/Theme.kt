@@ -1,17 +1,15 @@
 package rs.rajofearth.galery.ui.theme
 
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 val GaleryShapes = Shapes(
@@ -25,26 +23,37 @@ val GaleryShapes = Shapes(
     extraExtraLarge = RoundedCornerShape(48.dp),
 )
 
+private val GalleryColors = darkColorScheme(
+    primary = Color(0xFFB7DAFF),
+    onPrimary = Color(0xFF102436),
+    primaryContainer = Color(0xFF253544),
+    onPrimaryContainer = Color(0xFFE0EFFF),
+    secondaryContainer = Color(0xFF292C30),
+    onSecondaryContainer = Color(0xFFF6F7F8),
+    background = Color(0xFF000000),
+    surface = Color(0xFF000000),
+    surfaceContainerLow = Color(0xFF131517),
+    surfaceContainer = Color(0xFF1C1C1E),
+    surfaceContainerHigh = Color(0xFF222528),
+    surfaceContainerHighest = Color(0xFF2A2D30),
+    onBackground = Color(0xFFF6F7F8),
+    onSurface = Color(0xFFF6F7F8),
+    onSurfaceVariant = Color(0xFFA9AFB5),
+    outline = Color(0xFF747A80),
+    outlineVariant = Color(0xFF34383C),
+)
+
+private val GalleryTypography = Typography().let { default ->
+    default.copy(headlineMedium = default.headlineMedium.copy(fontWeight = FontWeight.Bold))
+}
+
 @Composable
-fun GaleryTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit,
-) {
-    val context = LocalContext.current
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-
-        darkTheme -> darkColorScheme()
-
-        else -> expressiveLightColorScheme()
-    }
-
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
+fun GaleryTheme(content: @Composable () -> Unit) {
+    MaterialTheme(
+        colorScheme = GalleryColors,
         shapes = GaleryShapes,
-        content = content,
-    )
+        typography = GalleryTypography,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides GalleryColors.onSurface, content = content)
+    }
 }

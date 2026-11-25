@@ -7,6 +7,24 @@ import org.junit.Test
 
 class ViewerZoomStateTest {
     @Test
+    fun `landscape photo in portrait pans only beyond its fitted edges`() {
+        val zoom = ViewerZoomState(scale = 3f, offsetX = 900f, offsetY = -900f)
+            .boundPan(width = 400, height = 800, aspect = 2f)
+
+        assertEquals(400f, zoom.offsetX, 0.0001f)
+        assertEquals(0f, zoom.offsetY, 0.0001f)
+    }
+
+    @Test
+    fun `portrait photo in landscape clamps vertical pan`() {
+        val zoom = ViewerZoomState(scale = 2f, offsetX = 900f, offsetY = -900f)
+            .boundPan(width = 800, height = 400, aspect = 0.5f)
+
+        assertEquals(0f, zoom.offsetX, 0.0001f)
+        assertEquals(-200f, zoom.offsetY, 0.0001f)
+    }
+
+    @Test
     fun `pinching out zooms in up to the maximum scale`() {
         val state = ViewerZoomState()
 

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Stable expressive components first, isolated experimental opt-ins
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 For the first iteration we use the expressive components that are stable in 1.5.0: the `ToggleButton` family, `ButtonGroup`, `SplitButton`, `FloatingActionButtonMenu` and `ToggleFloatingActionButton`, `HorizontalFloatingToolbar` and `VerticalFloatingToolbar`, the flexible app bars, and `LinearWavyProgressIndicator` and `CircularWavyProgressIndicator`. The still-experimental `LoadingIndicator`, `ContainedLoadingIndicator`, `MaterialShapes`, and shape conversions (ADR-0007) are used only behind a narrow `@OptIn(ExperimentalMaterial3ExpressiveApi::class)`, applied at file or function level and never globally.
 

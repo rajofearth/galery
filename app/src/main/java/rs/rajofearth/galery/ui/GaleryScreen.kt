@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -58,19 +59,19 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import rs.rajofearth.galery.ui.theme.GalleryIcon
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.safeDrawingPadding
+import rs.rajofearth.galery.ui.theme.GalleryText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -127,11 +128,16 @@ internal enum class GaleryTab(val title: Int, val icon: ImageVector, val empty: 
 internal fun GaleryScreen(
     tab: GaleryTab,
     onTabSelected: (GaleryTab) -> Unit,
+    onOpenSettings: () -> Unit,
     album: MediaAlbum?,
     onAlbumSelected: (MediaAlbum) -> Unit,
     onExitAlbum: () -> Unit,
     albums: List<MediaAlbum>,
+    albumScroll: LazyGridState,
+    favoriteCover: MediaItem?,
+    favoriteCount: Int,
     trashOpen: Boolean,
+    trashCount: Int?,
     onOpenTrash: (() -> Unit)?,
     onRestore: () -> Unit,
     timelineItems: List<MediaItem>,
@@ -174,18 +180,9 @@ internal fun GaleryScreen(
             val wide = maxWidth >= 720.dp
             Row(Modifier.fillMaxSize()) {
                 if (wide) {
-                    NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-                        listOf(GaleryTab.AllMedia, GaleryTab.Albums).forEach {
-                            NavigationRailItem(
-                                selected = tab == it || it == GaleryTab.Albums && tab == GaleryTab.Favorites,
-                                onClick = { onTabSelected(it) },
-                                icon = { Icon(it.icon, contentDescription = null) },
-                                label = { Text(stringResource(it.title)) },
-                            )
-                        }
-                    }
+                    GalleryRail(tab, onTabSelected)
                 }
-                Scaffold(
+                GalleryScaffold(
                     modifier = Modifier.weight(1f),
                     topBar = {
                         when {
@@ -201,15 +198,18 @@ internal fun GaleryScreen(
                                 if (album != null || trashOpen || tab == GaleryTab.Favorites) {
                                     RoundTool(Icons.AutoMirrored.Filled.ArrowBack, R.string.go_back) { if (tab == GaleryTab.Favorites) onTabSelected(GaleryTab.Albums) else onExitAlbum() }
                                 }
-                                Text(
+                                GalleryText(
                                     title,
                                     modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.headlineMedium,
+                                    style = GalleryTypography.headlineMedium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 if (tab != GaleryTab.Favorites) {
                                     RoundTool(Icons.Filled.Search, R.string.search, onClick = onSearch)
+                                }
+                                if (showAlbums) {
+                                    RoundTool(Icons.Filled.Settings, R.string.settings, onClick = onOpenSettings)
                                 }
                                 if (!showAlbums && !timelineOpen) {
                                     LayoutTool(layout, onToggleLayout)
@@ -242,8 +242,11 @@ internal fun GaleryScreen(
                         }
                     },
                 ) { innerPadding ->
-                    val gallery = Modifier.fillMaxSize().glassBackdropSource(backdrop)
-                        .galleryEntrance(listOf(tab, album?.key, trashOpen, searching, timelineOpen))
+                    val gallery = Modifier.fillMaxSize().glassBackdropSource(backdrop).then(
+                        if (album != null || trashOpen || searching || timelineOpen || tab == GaleryTab.Favorites) {
+                            Modifier.galleryEntrance(listOf(album?.key, trashOpen, searching, timelineOpen))
+                        } else Modifier,
+                    )
                     val body = gallery.padding(innerPadding)
                     when {
                         timelineOpen -> TimelineBrowser(timelineItems, gallery, innerPadding,
@@ -254,12 +257,15 @@ internal fun GaleryScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text(stringResource(R.string.media_load_error))
-                                Button(onClick = onRetry) { Text(stringResource(R.string.media_access_retry)) }
+                                GalleryText(stringResource(R.string.media_load_error))
+                                GalleryPillAction(stringResource(R.string.media_access_retry), primary = true, onClick = onRetry)
                             }
                         }
                         !hasMedia -> Box(body, contentAlignment = Alignment.Center) { LibraryLoadingIndicator() }
-                        showAlbums -> AlbumGrid(albums, onAlbumSelected, onOpenTrash, gallery, innerPadding, wide, { onTabSelected(GaleryTab.Favorites) })
+                        showAlbums -> AlbumGrid(
+                            albums, favoriteCover, favoriteCount, trashCount, onAlbumSelected, onOpenTrash,
+                            gallery, innerPadding, wide, albumScroll, { onTabSelected(GaleryTab.Favorites) },
+                        )
                         !showAlbums && hasItems -> mediaTiles(gallery, innerPadding)
                         else -> EmptyLibrary(
                             if (query.isBlank()) tab.icon else Icons.Filled.Search,
@@ -276,11 +282,15 @@ internal fun GaleryScreen(
 @Composable
 private fun AlbumGrid(
     albums: List<MediaAlbum>,
+    favoriteCover: MediaItem?,
+    favoriteCount: Int,
+    trashCount: Int?,
     onOpen: (MediaAlbum) -> Unit,
     onOpenTrash: (() -> Unit)?,
     modifier: Modifier,
     contentPadding: PaddingValues,
     wide: Boolean,
+    state: LazyGridState,
     onOpenFavorites: () -> Unit,
 ) {
     val (shortcuts, folders) = remember(albums) {
@@ -288,6 +298,7 @@ private fun AlbumGrid(
     }
     LazyVerticalGrid(
         columns = GridCells.Fixed(if (wide) 6 else 3),
+        state = state,
         contentPadding = contentPadding,
         modifier = modifier.padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -309,31 +320,40 @@ private fun AlbumGrid(
                 AlbumCover(it, onOpen)
             }
         }
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(
-                Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large)
-                    .background(MaterialTheme.colorScheme.surfaceContainer).clickable(onClick = onOpenFavorites)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Icon(Icons.Filled.FavoriteBorder, null, Modifier.size(20.dp))
-                Text(stringResource(R.string.favorites), style = MaterialTheme.typography.titleMedium)
-            }
+        item(key = "favorites") {
+            AlbumCover(stringResource(R.string.favorites), favoriteCover, favoriteCount, Icons.Filled.FavoriteBorder, onOpenFavorites)
         }
         if (onOpenTrash != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Surface(
-                    onClick = onOpenTrash,
-                    shape = MaterialTheme.shapes.large,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Icon(Icons.Filled.DeleteOutline, contentDescription = null)
-                        Text(stringResource(R.string.trash_album), style = MaterialTheme.typography.titleMedium)
-                    }
-                }
+            item(key = "trash") {
+                AlbumCover(stringResource(R.string.trash_album), null, trashCount, Icons.Filled.DeleteOutline, onOpenTrash)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GalleryRail(tab: GaleryTab, onTabSelected: (GaleryTab) -> Unit) {
+    Column(
+        Modifier.width(80.dp).background(GalleryPalette.surfaceContainer)
+            .safeDrawingPadding().selectableGroup().padding(GalleryDesign.gap),
+        verticalArrangement = Arrangement.spacedBy(GalleryDesign.gap),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        listOf(GaleryTab.AllMedia, GaleryTab.Albums).forEach { destination ->
+            val selected = tab == destination || destination == GaleryTab.Albums && tab == GaleryTab.Favorites
+            Column(
+                Modifier.fillMaxWidth().clip(GalleryDesign.cover)
+                    .background(if (selected) GalleryPalette.surfaceContainerHighest else Color.Transparent)
+                    .selectable(selected, role = Role.Tab) { onTabSelected(destination) }
+                    .padding(vertical = GalleryDesign.gap),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                GalleryIcon(destination.icon, contentDescription = null)
+                GalleryText(
+                    stringResource(if (destination == GaleryTab.AllMedia) R.string.photos_title else destination.title),
+                    style = GalleryTypography.labelSmall,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -341,43 +361,59 @@ private fun AlbumGrid(
 
 @Composable
 private fun AlbumSectionTitle(label: Int) {
-    Text(
+    GalleryText(
         stringResource(label),
-        style = MaterialTheme.typography.titleMedium,
+        style = GalleryTypography.titleMedium,
         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
 
 @Composable
 private fun AlbumCover(album: MediaAlbum, onOpen: (MediaAlbum) -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        color = Color.Transparent,
+    AlbumCover(album.displayName(), album.items.firstOrNull(), album.items.size) { onOpen(album) }
+}
+
+@Composable
+private fun AlbumCover(
+    name: String,
+    cover: MediaItem?,
+    count: Int?,
+    fallback: ImageVector = Icons.Filled.PhotoAlbum,
+    onOpen: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth().clip(GalleryDesign.cover).clickable(role = Role.Button, onClick = onOpen),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(
-            Modifier.clickable(role = Role.Button) { onOpen(album) },
-            horizontalAlignment = Alignment.CenterHorizontally,
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1f).clip(GalleryDesign.cover)
+                .background(GalleryPalette.surfaceContainer),
+            contentAlignment = Alignment.Center,
         ) {
-            AsyncImage(
-                rememberMediaImageModel(album.items.first(), thumbnail = true),
-                onSuccess = galleryImageReady(),
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1f).clip(GalleryDesign.cover)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                contentScale = ContentScale.Crop,
-            )
-            Column(Modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    album.displayName(),
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            if (cover != null) {
+                AsyncImage(
+                    rememberMediaImageModel(cover, thumbnail = true),
+                    onSuccess = galleryImageReady(),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
                 )
-                Text(
-                    pluralStringResource(R.plurals.album_item_count, album.items.size, album.items.size),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            } else {
+                GalleryIcon(fallback, null, Modifier.size(32.dp), tint = GalleryPalette.onSurfaceVariant)
+            }
+        }
+        Column(Modifier.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            GalleryText(
+                name,
+                style = GalleryTypography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (count != null) {
+                GalleryText(
+                    pluralStringResource(R.plurals.album_item_count, count, count),
+                    style = GalleryTypography.bodySmall,
+                    color = GalleryPalette.onSurfaceVariant,
                 )
             }
         }
@@ -395,14 +431,14 @@ private fun EmptyLibrary(icon: ImageVector, label: Int, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(40.dp))
-        Text(stringResource(label), style = MaterialTheme.typography.bodyLarge)
+        GalleryIcon(icon, contentDescription = null, modifier = Modifier.size(40.dp))
+        GalleryText(stringResource(label), style = GalleryTypography.bodyLarge)
     }
 }
 
 @Composable
 private fun LibraryLoadingIndicator() {
-    val colors = MaterialTheme.colorScheme
+    val colors = GalleryPalette
     val rotation by rememberInfiniteTransition(label = "Library loading").animateFloat(
         initialValue = -90f,
         targetValue = 270f,
@@ -432,7 +468,7 @@ private fun SearchBar(
 ) {
     val focus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    val colors = MaterialTheme.colorScheme
+    val colors = GalleryPalette
     Column(
         Modifier.fillMaxWidth().statusBarsPadding()
             .padding(horizontal = GalleryDesign.inset, vertical = GalleryDesign.gap),
@@ -448,20 +484,20 @@ private fun SearchBar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(Icons.Filled.Search, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
+                GalleryIcon(Icons.Filled.Search, null, Modifier.size(20.dp), tint = colors.onSurfaceVariant)
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
                     modifier = Modifier.weight(1f).focusRequester(focus),
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+                    textStyle = GalleryTypography.bodyLarge.copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                     decorationBox = { field ->
                         Box {
                             if (query.isEmpty()) {
-                                Text(stringResource(R.string.search_photos_hint), color = colors.onSurfaceVariant)
+                                GalleryText(stringResource(R.string.search_photos_hint), color = colors.onSurfaceVariant)
                             }
                             field()
                         }
@@ -511,7 +547,7 @@ private fun SortMenu(sort: MediaSort, onSort: (MediaSort) -> Unit) {
                     expanded = false
                 }
             }
-            androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(GalleryPalette.outlineVariant))
             listOf(true, false).forEach { descending ->
                 GalleryMenuRow(
                     stringResource(if (descending) R.string.sort_descending else R.string.sort_ascending),
@@ -535,12 +571,12 @@ private fun SelectionBar(count: Int, onClear: () -> Unit, onSelectAll: () -> Uni
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ToolIcon(Icons.Filled.Close, R.string.clear_selection, onClear)
-        Text(
+        GalleryText(
             pluralStringResource(R.plurals.selection_count, count, count),
             modifier = Modifier.weight(1f),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            style = MaterialTheme.typography.titleLarge,
+            style = GalleryTypography.titleLarge,
         )
         ToolIcon(Icons.Filled.SelectAll, R.string.select_all, onSelectAll)
     }
@@ -603,10 +639,10 @@ private fun ToolIcon(icon: ImageVector, label: Int, onClick: () -> Unit) {
 private fun LibraryDock(tab: GaleryTab, onTabSelected: (GaleryTab) -> Unit) {
     val indicator by animateFloatAsState(
         if (tab == GaleryTab.AllMedia) 0f else 1f,
-        GalleryDesign.spatial(),
+        GalleryDesign.effects(),
         label = "Library tab indicator",
     )
-    val fill = MaterialTheme.colorScheme.surfaceContainerHighest
+    val fill = GalleryPalette.surfaceContainerHighest
     Row(
         Modifier.galleryPill()
             .selectableGroup()
@@ -731,7 +767,7 @@ private fun GalleryMenuRow(
     destructive: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val colors = MaterialTheme.colorScheme
+    val colors = GalleryPalette
     val color = when {
         !enabled -> colors.onSurfaceVariant
         destructive -> colors.error
@@ -744,8 +780,8 @@ private fun GalleryMenuRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (icon != null) Icon(icon, null, Modifier.size(20.dp), tint = color)
-        Text(label, Modifier.weight(1f), color = color)
-        if (selected) Icon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = color)
+        if (icon != null) GalleryIcon(icon, null, Modifier.size(20.dp), tint = color)
+        GalleryText(label, Modifier.weight(1f), color = color)
+        if (selected) GalleryIcon(Icons.Filled.Check, null, Modifier.size(18.dp), tint = color)
     }
 }

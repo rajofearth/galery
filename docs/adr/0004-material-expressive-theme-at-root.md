@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Wrap the app in MaterialExpressiveTheme, not MaterialTheme
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 The root theme composable is `MaterialExpressiveTheme` (added in Material 3 1.5.0). It defaults to `expressiveLightColorScheme()` and `MotionScheme.expressive()`, and supplies expressive values through the familiar `MaterialTheme.colorScheme`, `MaterialTheme.typography`, `MaterialTheme.shapes`, and `MaterialTheme.motionScheme` accessors. Nested `MaterialTheme(...)` calls are used only for per-screen overrides.
 

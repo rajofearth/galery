@@ -11,8 +11,8 @@ android {
         applicationId = "rs.rajofearth.galery"
         minSdk = 24
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     buildTypes {
@@ -24,6 +24,10 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    packaging {
+        jniLibs.useLegacyPackaging = true
     }
 
     compileOptions {
@@ -47,7 +51,6 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3:1.5.0")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")

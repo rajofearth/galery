@@ -3,22 +3,20 @@ package rs.rajofearth.galery.ui
 import android.text.format.DateFormat
 import android.text.format.Formatter
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
+import rs.rajofearth.galery.ui.theme.GalleryText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import rs.rajofearth.galery.R
@@ -41,10 +38,10 @@ internal fun MediaDetailsDialog(
     onDismiss: () -> Unit,
 ) {
     GallerySheet(onDismissRequest = onDismiss, frameAtDraw = frameAtDraw) {
-        Text(
+        GalleryText(
             stringResource(R.string.media_details_title),
             modifier = Modifier.fillMaxWidth().padding(horizontal = GalleryDesign.inset),
-            style = MaterialTheme.typography.titleLarge,
+            style = GalleryTypography.titleLarge,
         )
         LazyColumn(
             modifier = Modifier.fillMaxWidth().weight(1f, fill = false),
@@ -61,7 +58,7 @@ internal fun MediaDetailsDialog(
 @Composable
 private fun MediaDetailsFields(item: MediaItem, isFavorite: Boolean) {
     val context = LocalContext.current
-    val cardTint = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.48f)
+    val cardTint = GalleryPalette.surfaceContainerHighest.copy(alpha = 0.48f)
     val unknown = stringResource(R.string.media_details_unknown)
     val folder = item.relativePath.trimEnd('/').ifBlank {
         item.filePath?.substringBeforeLast('/', missingDelimiterValue = "").orEmpty()
@@ -89,12 +86,12 @@ private fun MediaDetailsFields(item: MediaItem, isFavorite: Boolean) {
                     contentScale = ContentScale.Crop,
                 )
                 Column(Modifier.weight(1f)) {
-                    Text(item.displayName.ifBlank { unknown }, style = MaterialTheme.typography.titleMedium)
+                    GalleryText(item.displayName.ifBlank { unknown }, style = GalleryTypography.titleMedium)
                     if (dateTaken != null) {
-                        Text(
+                        GalleryText(
                             dateTaken,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = GalleryTypography.bodySmall,
+                            color = GalleryPalette.onSurfaceVariant,
                         )
                     }
                 }
@@ -142,40 +139,17 @@ private fun DetailField(label: Int, value: String) {
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
+        GalleryText(
             stringResource(label),
             modifier = Modifier.weight(0.36f),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
+            color = GalleryPalette.onSurfaceVariant,
+            style = GalleryTypography.bodyMedium,
         )
-        Text(
+        GalleryText(
             value,
             modifier = Modifier.weight(0.64f),
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-internal fun MediaPillAction(
-    label: String,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val colors = MaterialTheme.colorScheme
-    Box(
-        modifier.then(if (primary) Modifier.clip(CircleShape).background(colors.primary) else Modifier.galleryPill())
-            .clickable(role = Role.Button, onClick = onClick)
-            .heightIn(min = 48.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = if (primary) colors.onPrimary else colors.onSurface,
-            style = MaterialTheme.typography.labelLarge,
+            color = GalleryPalette.onSurface,
+            style = GalleryTypography.bodyMedium,
         )
     }
 }

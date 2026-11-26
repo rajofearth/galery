@@ -1,24 +1,13 @@
-# Architecture Decision Records
+# Architecture decisions
 
-Research-phase decisions for a Kotlin and Jetpack Compose app using Material 3 Expressive.
+Read the current decisions before changing Galery.
 
-ADRs 0001 to 0009 and 0011 are `accepted`; the shell builds and installs against the recorded versions. ADRs 0010 and 0012 remain `proposed`. Promote an ADR to `accepted` only after a real project builds against the pinned versions.
+| ADR | Status | Decision |
+| --- | --- | --- |
+| [0001](0001-compose-over-xml.md) | Accepted | Use Kotlin and Jetpack Compose for UI |
+| [0003](0003-toolchain-baseline.md) | Accepted | Kotlin, Gradle, and Android toolchain |
+| [0010](0010-wear-os-deferred.md) | Accepted | Defer Wear OS for v1 |
+| [0011](0011-research-phase-no-build-validation.md) | Historical | How the initial toolchain research was validated |
+| [0013](0013-galery-owned-ui.md) | Accepted | Galery-owned palette, glass, motion, and packaging budget |
 
-Research date: 21 November 2026.
-
-| ADR | Decision |
-| --- | --- |
-| [0001](0001-compose-over-xml.md) | Use Jetpack Compose with Kotlin; no XML layouts |
-| [0002](0002-compose-bom-and-material3-1-5.md) | Compose BOM 2026.08.00 with explicit Material 3 1.5.0 |
-| [0003](0003-toolchain-baseline.md) | Toolchain baseline: Kotlin 2.3.20, AGP 9.5.2, JDK 17, SDK 37 |
-| [0004](0004-material-expressive-theme-at-root.md) | Wrap the app in `MaterialExpressiveTheme`, not `MaterialTheme` |
-| [0005](0005-spring-motion-scheme.md) | Use spring-based `MotionScheme.expressive()` |
-| [0006](0006-dynamic-color-with-fallback.md) | Wallpaper-derived dynamic colour with an explicit fallback |
-| [0007](0007-emphasized-typography-and-expanded-shapes.md) | Emphasized type scale and expanded shape system |
-| [0008](0008-expressive-component-set-and-opt-in-policy.md) | Stable expressive components first, isolated experimental opt-ins |
-| [0009](0009-edge-to-edge-and-adaptive-navigation.md) | Edge-to-edge and adaptive navigation from the start |
-| [0010](0010-wear-os-deferred.md) | Wear OS deferred; use `wear-compose-material3` if added |
-| [0011](0011-research-phase-no-build-validation.md) | Research-only constraint: decisions must be build-verified later |
-| [0012](0012-reference-apps-as-specification.md) | Use official sample apps as the executable specification |
-
-Sources were taken from the AndroidX release notes and BOM mapping. Some community repos and tutorials still pin 1.5.0 alpha or beta, or 1.4.0. Their code is conceptual until adapted to the stable line.
+The earlier Compose dependency, theme, components, navigation implementation, and reference-app decisions are retained as superseded records. See [the current UI decision](0013-galery-owned-ui.md).

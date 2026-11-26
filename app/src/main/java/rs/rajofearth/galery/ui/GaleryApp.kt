@@ -18,7 +18,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import rs.rajofearth.galery.ui.theme.GalleryPalette
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.DisposableEffect
@@ -51,12 +52,15 @@ import rs.rajofearth.galery.data.MediaStoreMediaRepository
 import rs.rajofearth.galery.data.filteredBy
 import rs.rajofearth.galery.data.sortedBy
 import rs.rajofearth.galery.data.toAlbums
-import rs.rajofearth.galery.ui.theme.GaleryTheme
 
 @Composable
 fun GaleryApp() {
     val context = LocalContext.current
     val lifecycle = LocalView.current.findViewTreeLifecycleOwner()?.lifecycle
+    var foreground by remember(lifecycle) {
+        mutableStateOf(lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) == true)
+    }
+    val updates = rememberGalleryUpdates(foreground)
     val permissionHistory = remember(context) {
         context.getSharedPreferences("media-access", Context.MODE_PRIVATE)
     }
@@ -83,10 +87,13 @@ fun GaleryApp() {
         var hasResumed = false
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
+                foreground = true
                 val currentAccess = mediaAccessGranted(context)
                 if (hasResumed || currentAccess != accessGranted) refresh++
                 accessGranted = currentAccess
                 hasResumed = true
+            } else if (event == Lifecycle.Event.ON_PAUSE) {
+                foreground = false
             }
         }
         lifecycle?.addObserver(observer)
@@ -98,21 +105,19 @@ fun GaleryApp() {
         if (accessState == MediaAccessState.RequestFirstTime) askForAccess()
     }
 
-    GaleryTheme {
-        MediaAccessGate(
-            state = accessState,
-            onRequestAccess = ::askForAccess,
-            onOpenSettings = {
-                context.startActivity(
-                    Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", context.packageName, null),
-                    ),
-                )
-            },
-        ) {
-            GaleryLibrary(refresh, onRefresh = { refresh++ })
-        }
+    MediaAccessGate(
+        state = accessState,
+        onRequestAccess = ::askForAccess,
+        onOpenSettings = {
+            context.startActivity(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null),
+                ),
+            )
+        },
+    ) {
+        GaleryLibrary(refresh, updates, onRefresh = { refresh++ })
     }
 }
 
@@ -123,7 +128,7 @@ private data class ViewerSession(val items: List<MediaItem>, val initialIndex: I
 }
 
 @Composable
-private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
+private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, onRefresh: () -> Unit) {
     val context = LocalContext.current
     val repository = remember(context) { MediaStoreMediaRepository(context.applicationContext) }
     val focusManager = LocalFocusManager.current
@@ -137,17 +142,20 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
     var favoriteKeys by remember(prefs) { mutableStateOf(prefs.favoriteKeys) }
     var media by remember { mutableStateOf<List<MediaItem>?>(null) }
     var trashItems by remember { mutableStateOf<List<MediaItem>>(emptyList()) }
+    var trashCount by remember { mutableStateOf<Int?>(null) }
     var loadFailed by remember { mutableStateOf(false) }
     var tab by rememberSaveable { mutableStateOf(GaleryTab.AllMedia) }
     var albumKey by rememberSaveable { mutableStateOf<String?>(null) }
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var selectedKeys by remember { mutableStateOf(emptySet<String>()) }
     var viewer by remember { mutableStateOf<ViewerSession?>(null) }
     var viewerItem by remember { mutableStateOf<MediaItem?>(null) }
     var closeRequested by remember { mutableStateOf(false) }
     val visibility = remember { MutableTransitionState(false) }
     val scrollStates = rememberSaveableStateHolder()
+    val albumScroll = rememberLazyGridState()
 
     LaunchedEffect(repository, refresh) {
         loadFailed = false
@@ -163,19 +171,30 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
     }
 
     val trashOpen = tab == GaleryTab.Albums && albumKey == TRASH_ROUTE
-    LaunchedEffect(trashOpen, refresh) {
-        if (trashOpen) {
-            trashItems = try { repository.loadMedia(trashed = true) }
-            catch (_: IOException) { emptyList() }
-            catch (_: SecurityException) { emptyList() }
+    val showTrashCount = tab == GaleryTab.Albums && albumKey == null && !searching && !settingsOpen
+    LaunchedEffect(repository, trashOpen, showTrashCount, refresh) {
+        try {
+            if (trashOpen) {
+                trashItems = repository.loadMedia(trashed = true)
+                trashCount = trashItems.size
+            } else if (showTrashCount) {
+                trashCount = repository.countTrashedMedia()
+            }
+        } catch (_: IOException) {
+            if (trashOpen) trashItems = emptyList()
+            trashCount = null
+        } catch (_: SecurityException) {
+            if (trashOpen) trashItems = emptyList()
+            trashCount = null
         }
     }
     val sortedMedia = remember(media, sort) {
         val items = media.orEmpty()
         if (sort == MediaSort()) items else items.sortedBy(sort)
     }
+    val albumIndex = remember(sortedMedia) { lazy { sortedMedia.toAlbums() } }
     val albums = if (tab == GaleryTab.Albums && !trashOpen) {
-        remember(sortedMedia) { sortedMedia.toAlbums() }
+        albumIndex.value
     } else {
         emptyList()
     }
@@ -188,19 +207,24 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
         }
     }
     val filter = if (searching) searchFilter else if (tab == GaleryTab.AllMedia) photoFilter else PhotoFilter.All
-    val visibleItems = remember(unfiltered, query, filter) {
-        val items = when (filter) {
-            PhotoFilter.All -> unfiltered
-            PhotoFilter.Photos -> unfiltered.filterNot { it.isVideo }
-            PhotoFilter.Videos -> unfiltered.filter { it.isVideo }
-        }
-        items.filteredBy(query)
+    val photos = remember(sortedMedia, photoFilter) { sortedMedia.withPhotoFilter(photoFilter) }
+    val photosRoot = tab == GaleryTab.AllMedia && !searching
+    val visibleItems = if (photosRoot) photos else remember(unfiltered, query, filter) {
+        unfiltered.withPhotoFilter(filter).filteredBy(query)
     }
-    val showsAlbumCovers = tab == GaleryTab.Albums && album == null && !trashOpen && !searching
-    val selected = if (selectedKeys.isEmpty()) emptyList() else remember(visibleItems, selectedKeys) {
-        visibleItems.filter { it.key in selectedKeys }
+    val dated = sort.field == MediaSortField.Date
+    val photoContent = remember(photos, layout, dated) { lazy { MediaTileContent(photos, layout, dated) } }
+    val favoriteCover = if (tab == GaleryTab.Albums) remember(sortedMedia, favoriteKeys) {
+        if (favoriteKeys.isEmpty()) null else sortedMedia.firstOrNull { it.key in favoriteKeys }
+    } else null
+    val visibleKeys = remember(visibleItems) {
+        lazy { visibleItems.mapTo(HashSet(visibleItems.size)) { it.key } }
     }
-    val selectedVisibleKeys = remember(selected) { selected.mapTo(HashSet(selected.size)) { it.key } }
+    val selectedVisibleKeys = remember(visibleKeys, selectedKeys) {
+        if (selectedKeys.all { it in visibleKeys.value }) selectedKeys else selectedKeys.intersect(visibleKeys.value)
+    }
+
+    fun selectedMedia() = visibleItems.filter { it.key in selectedVisibleKeys }
 
     fun closeSearch() {
         query = ""
@@ -219,9 +243,9 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
         },
     )
 
-    BackHandler(enabled = viewer == null && (selected.isNotEmpty() || searching || albumKey != null || tab == GaleryTab.Favorites)) {
+    BackHandler(enabled = viewer == null && (selectedVisibleKeys.isNotEmpty() || searching || albumKey != null || tab == GaleryTab.Favorites)) {
         when {
-            selected.isNotEmpty() -> selectedKeys = emptySet()
+            selectedVisibleKeys.isNotEmpty() -> selectedKeys = emptySet()
             searching -> closeSearch()
             tab == GaleryTab.Favorites -> tab = GaleryTab.Albums
             else -> albumKey = null
@@ -230,110 +254,126 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
 
     val routeKey = if (tab == GaleryTab.Albums) albumKey ?: "albums" else tab.name
     val sectionKey = if (searching) "$routeKey:search" else routeKey
-    scrollStates.SaveableStateProvider(sectionKey) {
-        val tiles = rememberMediaTilesState(
-            if (showsAlbumCovers) emptyList() else visibleItems,
-            layout,
-            dated = sort.field == MediaSortField.Date,
-        )
-        LaunchedEffect(timelineJump, layout) {
-            val itemKey = timelineJump ?: return@LaunchedEffect
-            if (layout == MediaLayout.Grid) {
-                tiles.jumpToDate(itemKey)
-                timelineJump = null
-            }
+    var activeTiles by remember { mutableStateOf<MediaTilesState?>(null) }
+    LaunchedEffect(closeRequested) {
+        if (!closeRequested) return@LaunchedEffect
+        val itemKey = viewerItem?.key
+        if (itemKey != null && itemKey != viewer?.initialItem?.key && activeTiles?.reveal(itemKey) == true) {
+            withFrameNanos {}
         }
-        LaunchedEffect(query, searchFilter) {
-            if (searching) tiles.resetScroll()
+        visibility.targetState = false
+    }
+    LaunchedEffect(visibility.isIdle, visibility.currentState, visibility.targetState) {
+        if (closeRequested && visibility.isIdle && !visibility.targetState) {
+            viewer = null
+            viewerItem = null
+            closeRequested = false
         }
-        LaunchedEffect(closeRequested) {
-            if (!closeRequested) return@LaunchedEffect
-            val itemKey = viewerItem?.key
-            if (itemKey != null && itemKey != viewer?.initialItem?.key && tiles.reveal(itemKey)) {
-                withFrameNanos {}
-            }
-            visibility.targetState = false
-        }
-        LaunchedEffect(visibility.isIdle, visibility.currentState, visibility.targetState) {
-            if (closeRequested && visibility.isIdle && !visibility.targetState) {
-                viewer = null
-                viewerItem = null
-                closeRequested = false
-            }
-        }
+    }
 
-        Box {
-            Box(Modifier.fillMaxSize()) {
-                GaleryScreen(
-                    tab = tab,
-                    onTabSelected = {
-                        if (it != tab) {
-                            tab = it
-                            albumKey = null
-                            selectedKeys = emptySet()
-                            closeSearch()
-                        } else if (it == GaleryTab.Albums && albumKey != null) {
-                            albumKey = null
-                            selectedKeys = emptySet()
-                            closeSearch()
-                        }
-                    },
-                    album = album,
-                    onAlbumSelected = { albumKey = it.key },
-                    onExitAlbum = {
+    if (settingsOpen) {
+        GallerySettings(updates) { settingsOpen = false }
+        return
+    }
+
+    Box {
+        Box(Modifier.fillMaxSize()) {
+            GaleryScreen(
+                tab = tab,
+                onOpenSettings = { settingsOpen = true },
+                onTabSelected = {
+                    if (it != tab) {
+                        tab = it
                         albumKey = null
-                        closeSearch()
-                    },
-                    albums = albums,
-                    trashOpen = trashOpen,
-                    onOpenTrash = if (actions.canTrash) ({ albumKey = TRASH_ROUTE; closeSearch() }) else null,
-                    onRestore = { actions.restore(selected) },
-                    timelineItems = visibleItems,
-                    photoFilter = photoFilter,
-                    onPhotoFilter = { photoFilter = it },
-                    searchFilter = searchFilter,
-                    onSearchFilter = { searchFilter = it },
-                    onTimelineJump = {
-                        layout = MediaLayout.Grid
-                        prefs.layout = layout
-                        timelineJump = it.key
-                    },
-                    searching = searching,
-                    onSearch = { searching = true },
-                    onCloseSearch = ::closeSearch,
-                    query = query,
-                    onQueryChange = { query = it },
-                    layout = layout,
-                    onToggleLayout = {
-                        layout = if (layout == MediaLayout.Mosaic) MediaLayout.Grid else MediaLayout.Mosaic
-                        prefs.layout = layout
-                    },
-                    sort = sort,
-                    onSort = {
-                        sort = it
-                        prefs.sort = it
-                    },
-                    selectionCount = selected.size,
-                    selectionBusy = actions.isBusy,
-                    onClearSelection = { selectedKeys = emptySet() },
-                    onSelectAll = { selectedKeys = visibleItems.mapTo(mutableSetOf()) { it.key } },
-                    onShare = { actions.share(selected) },
-                    removeFavorites = favoriteKeys.containsAll(selectedVisibleKeys),
-                    onFavoriteSelection = {
-                        favoriteKeys = prefs.toggleFavorites(selectedVisibleKeys)
                         selectedKeys = emptySet()
-                    },
-                    onTrash = { actions.trash(selected) },
-                    onDetails = { actions.details(selected, favoriteKeys) },
-                    hasMedia = media != null,
-                    backdrop = backdrop,
-                    loadFailed = loadFailed,
-                    onRetry = onRefresh,
-                    hasItems = visibleItems.isNotEmpty(),
-                ) { modifier, contentPadding ->
+                        closeSearch()
+                    } else if (it == GaleryTab.Albums && albumKey != null) {
+                        albumKey = null
+                        selectedKeys = emptySet()
+                        closeSearch()
+                    }
+                },
+                album = album,
+                onAlbumSelected = { albumKey = it.key },
+                onExitAlbum = {
+                    albumKey = null
+                    closeSearch()
+                },
+                albums = albums,
+                albumScroll = albumScroll,
+                favoriteCover = favoriteCover,
+                favoriteCount = favoriteKeys.size,
+                trashOpen = trashOpen,
+                trashCount = trashCount,
+                onOpenTrash = if (actions.canTrash) ({ albumKey = TRASH_ROUTE; closeSearch() }) else null,
+                onRestore = { actions.restore(selectedMedia()) },
+                timelineItems = visibleItems,
+                photoFilter = photoFilter,
+                onPhotoFilter = { photoFilter = it },
+                searchFilter = searchFilter,
+                onSearchFilter = { searchFilter = it },
+                onTimelineJump = {
+                    layout = MediaLayout.Grid
+                    prefs.layout = layout
+                    timelineJump = it.key
+                },
+                searching = searching,
+                onSearch = { searching = true },
+                onCloseSearch = ::closeSearch,
+                query = query,
+                onQueryChange = { query = it },
+                layout = layout,
+                onToggleLayout = {
+                    layout = if (layout == MediaLayout.Mosaic) MediaLayout.Grid else MediaLayout.Mosaic
+                    prefs.layout = layout
+                },
+                sort = sort,
+                onSort = {
+                    sort = it
+                    prefs.sort = it
+                },
+                selectionCount = selectedVisibleKeys.size,
+                selectionBusy = actions.isBusy,
+                onClearSelection = { selectedKeys = emptySet() },
+                onSelectAll = { selectedKeys = visibleKeys.value },
+                onShare = { actions.share(selectedMedia()) },
+                removeFavorites = favoriteKeys.containsAll(selectedVisibleKeys),
+                onFavoriteSelection = {
+                    favoriteKeys = prefs.toggleFavorites(selectedVisibleKeys)
+                    selectedKeys = emptySet()
+                },
+                onTrash = { actions.trash(selectedMedia()) },
+                onDetails = { actions.details(selectedMedia(), favoriteKeys) },
+                hasMedia = media != null,
+                backdrop = backdrop,
+                loadFailed = loadFailed,
+                onRetry = onRefresh,
+                hasItems = visibleItems.isNotEmpty(),
+            ) { modifier, contentPadding ->
+                scrollStates.SaveableStateProvider(sectionKey) {
+                    val content = if (photosRoot) photoContent.value else remember(visibleItems, layout, dated) {
+                        MediaTileContent(visibleItems, layout, dated)
+                    }
+                    val tiles = rememberMediaTilesState(content)
+                    DisposableEffect(tiles) {
+                        activeTiles = tiles
+                        onDispose { if (activeTiles === tiles) activeTiles = null }
+                    }
+                    LaunchedEffect(timelineJump, layout) {
+                        val itemKey = timelineJump ?: return@LaunchedEffect
+                        if (layout == MediaLayout.Grid) {
+                            tiles.jumpToDate(itemKey)
+                            timelineJump = null
+                        }
+                    }
+                    LaunchedEffect(query, searchFilter) {
+                        if (searching) tiles.resetScroll()
+                    }
                     MediaTiles(
                         state = tiles,
                         selectedKeys = selectedVisibleKeys,
+                        mediaKeys = { visibleItems.map { it.key } },
+                        onRangeSelectionChange = { if (viewer == null) selectedKeys = it },
                         onOpen = { item ->
                             if (viewer == null) {
                                 val index = visibleItems.indexOfFirst { it.key == item.key }
@@ -359,35 +399,41 @@ private fun GaleryLibrary(refresh: Int, onRefresh: () -> Unit) {
                         contentPadding = contentPadding,
                     )
                 }
+            }
 
-                val effects = GalleryDesign.effects<Float>()
-                AnimatedVisibility(
-                    visibleState = visibility,
-                    enter = fadeIn(effects) + scaleIn(GalleryDesign.spatial(), initialScale = 0.96f),
-                    exit = fadeOut(effects) + scaleOut(GalleryDesign.spatial(), targetScale = 0.98f),
-                    label = "Viewer",
-                ) {
-                    val session = viewer ?: return@AnimatedVisibility
-                    MediaViewer(
-                        items = session.items,
-                        initialIndex = session.initialIndex,
-                        onDismiss = { closeRequested = true },
-                        visible = visibility.targetState,
-                        onPageChanged = { viewerItem = it },
-                        onGlassSource = { viewerGlass.value = it },
-                        isFavorite = viewerItem?.key in favoriteKeys,
-                        onToggleFavorite = if (trashOpen) null else ({
-                            viewerItem?.let { favoriteKeys = prefs.toggleFavorite(it.key) }
-                        }),
-                        onShare = { actions.share(listOf(it)) },
-                        onTrash = if (trashOpen || !actions.canTrash) null else ({ actions.trash(listOf(it)) }),
-                        onRestore = if (trashOpen) ({ actions.restore(listOf(it)); closeRequested = true }) else null,
-                        onDetails = { actions.details(listOf(it), favoriteKeys) },
-                    )
-                }
+            val effects = GalleryDesign.effects<Float>()
+            AnimatedVisibility(
+                visibleState = visibility,
+                enter = fadeIn(effects) + scaleIn(GalleryDesign.spatial(), initialScale = 0.96f),
+                exit = fadeOut(effects) + scaleOut(GalleryDesign.spatial(), targetScale = 0.98f),
+                label = "Viewer",
+            ) {
+                val session = viewer ?: return@AnimatedVisibility
+                MediaViewer(
+                    items = session.items,
+                    initialIndex = session.initialIndex,
+                    onDismiss = { closeRequested = true },
+                    visible = visibility.targetState,
+                    onPageChanged = { viewerItem = it },
+                    onGlassSource = { viewerGlass.value = it },
+                    isFavorite = viewerItem?.key in favoriteKeys,
+                    onToggleFavorite = if (trashOpen) null else ({
+                        viewerItem?.let { favoriteKeys = prefs.toggleFavorite(it.key) }
+                    }),
+                    onShare = { actions.share(listOf(it)) },
+                    onTrash = if (trashOpen || !actions.canTrash) null else ({ actions.trash(listOf(it)) }),
+                    onRestore = if (trashOpen) ({ actions.restore(listOf(it)); closeRequested = true }) else null,
+                    onDetails = { actions.details(listOf(it), favoriteKeys) },
+                )
             }
         }
     }
+}
+
+private fun List<MediaItem>.withPhotoFilter(filter: PhotoFilter): List<MediaItem> = when (filter) {
+    PhotoFilter.All -> this
+    PhotoFilter.Photos -> filterNot { it.isVideo }
+    PhotoFilter.Videos -> filter { it.isVideo }
 }
 
 private fun fullMediaPermissions(): Array<String> =

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Use spring-based MotionScheme.expressive()
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 Motion is themed, not hand-tuned per animation. Set `motionScheme = MotionScheme.expressive()` on the root theme (ADR-0004) and read tokens via `MaterialTheme.motionScheme.defaultSpatialSpec<Float>()`, `fastSpatialSpec()`, `defaultEffectsSpec()`, and so on. Expressive's lower damping gives overshoot for hero interactions. `MotionScheme.standard()` remains available for calmer surfaces.
 

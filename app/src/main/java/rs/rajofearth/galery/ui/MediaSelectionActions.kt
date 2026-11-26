@@ -13,16 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,14 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -65,7 +48,6 @@ internal fun rememberMediaSelectionActions(
 ): MediaSelectionActions {
     val context = LocalContext.current
     val canTrash = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-    var trashConfirmation by remember { mutableStateOf(emptyList<MediaItem>()) }
     var details by remember { mutableStateOf<MediaDetails?>(null) }
     var trashUris by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
     var restoring by rememberSaveable { mutableStateOf(false) }
@@ -119,18 +101,6 @@ internal fun rememberMediaSelectionActions(
         }
     }
 
-    if (trashConfirmation.isNotEmpty()) {
-        TrashConfirmationSheet(
-            items = trashConfirmation,
-            onDismissRequest = { trashConfirmation = emptyList() },
-            onConfirm = {
-                restoring = false
-                trashUris = ArrayList(trashConfirmation.map { it.contentUri.toString() })
-                trashConfirmation = emptyList()
-            },
-        )
-    }
-
     details?.let { selection ->
         MediaDetailsDialog(selection.items, selection.favoriteKeys, frameAtDraw) { details = null }
     }
@@ -143,7 +113,8 @@ internal fun rememberMediaSelectionActions(
             if (!canTrash) {
                 Toast.makeText(context, R.string.media_trash_unavailable, Toast.LENGTH_LONG).show()
             } else if (items.isNotEmpty() && trashUris.isEmpty()) {
-                trashConfirmation = items.toList()
+                restoring = false
+                trashUris = ArrayList(items.map { it.contentUri.toString() })
             }
         },
         restore = { items ->
@@ -156,51 +127,6 @@ internal fun rememberMediaSelectionActions(
             if (items.isNotEmpty()) details = MediaDetails(items.toList(), favoriteKeys)
         },
     )
-}
-
-@Composable
-private fun TrashConfirmationSheet(
-    items: List<MediaItem>,
-    onDismissRequest: () -> Unit,
-    onConfirm: () -> Unit,
-) {
-    GallerySheet(onDismissRequest = onDismissRequest) {
-        Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(stringResource(R.string.media_trash_title), style = MaterialTheme.typography.titleLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items.take(3).forEach { item ->
-                    AsyncImage(
-                        model = rememberMediaImageModel(item, thumbnail = true),
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(MaterialTheme.shapes.medium),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-            Text(
-                pluralStringResource(R.plurals.media_trash_confirmation, items.size, items.size),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MediaPillAction(
-                    stringResource(android.R.string.cancel),
-                    modifier = Modifier.weight(1f),
-                    onClick = onDismissRequest,
-                )
-                MediaPillAction(
-                    stringResource(R.string.media_trash_title),
-                    modifier = Modifier.weight(1.4f),
-                    primary = true,
-                    onClick = onConfirm,
-                )
-            }
-        }
-    }
 }
 
 @RequiresApi(Build.VERSION_CODES.R)

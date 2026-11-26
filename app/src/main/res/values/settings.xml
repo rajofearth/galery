@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings">Settings</string>
+    <string name="about">About Galery</string>
+    <string name="privacy_policy">Privacy policy</string>
+    <string name="terms_of_use">Terms of use</string>
+    <string name="app_version">Version %1$s</string>
+    <string name="about_galery">Browse and organize the photos and videos on your device. The source code is public on GitHub.</string>
+    <string name="view_source">View source on GitHub</string>
+    <string name="browser_unavailable">No browser is available</string>
+    <string name="settings_information">App information</string>
+    <string name="privacy_media">Your photos and videos</string>
+    <string name="privacy_media_body">Galery reads the media you let it access. Browsing, searching, and favorites work on your device without an account. When you share an item, Galery gives access to the app you choose.</string>
+    <string name="privacy_updates">Connections to GitHub</string>
+    <string name="privacy_updates_body">Update checks connect to GitHub, which may receive your IP address. These requests contain no media, filenames, or searches. You can turn automatic checks off in Settings. Galery keeps a downloaded update in its private cache until installation or cleanup.</string>
+    <string name="privacy_backup">Android backup</string>
+    <string name="privacy_backup_body">Android may back up your Galery preferences if you enable system backup.</string>
+    <string name="terms_media">Managing media</string>
+    <string name="terms_media_body">Use Galery to view and manage media you have permission to access. Review your selection before sharing it or moving it to the bin. Android decides when items in the bin expire.</string>
+    <string name="terms_updates_body">Updates come from Galery’s public GitHub repository. You choose when to install them. Galery is provided as is. These terms do not limit any rights you have under applicable law.</string>
+    <string name="update_section">App updates</string>
+    <string name="update_check_now">Check for updates</string>
+    <string name="update_automatic">Automatic checks</string>
+    <string name="update_automatic_summary">While Galery is open</string>
+    <string name="update_using_github">Updates from GitHub</string>
+    <string name="update_checking">Checking for updates…</string>
+    <string name="update_check_failed">Could not check for updates</string>
+    <string name="update_up_to_date">You have the latest version</string>
+    <string name="update_available">Version %1$s is available</string>
+    <string name="update_available_notice">A Galery update is available in Settings</string>
+    <string name="update_download">Download and install</string>
+    <string name="update_downloading">Downloading update…</string>
+    <string name="update_installing">Confirm installation in Android</string>
+    <string name="update_install_permission">Allow installs in Android, then try again</string>
+    <string name="update_install_failed">Could not prepare the update for installation</string>
+</resources>

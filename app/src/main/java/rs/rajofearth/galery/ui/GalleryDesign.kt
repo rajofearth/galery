@@ -17,9 +17,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import rs.rajofearth.galery.ui.theme.GalleryIcon
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
+import rs.rajofearth.galery.ui.theme.GalleryText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ internal object GalleryDesign {
     val target = 48.dp
     val dock = 56.dp
     val cover = RoundedCornerShape(16.dp)
+    val tileCover = RoundedCornerShape(12.dp)
     val panel = RoundedCornerShape(20.dp)
     val sheet = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     const val glassTint = 0.60f
@@ -61,7 +63,7 @@ internal fun Modifier.galleryPill(
     shape: Shape = CircleShape,
     backdrop: GlassBackdrop? = LocalGalleryGlass.current,
 ): Modifier {
-    val tint = MaterialTheme.colorScheme.surfaceContainer
+    val tint = GalleryPalette.surfaceContainer
     return if (backdrop == null) {
         clip(shape).background(tint)
     } else {
@@ -101,7 +103,7 @@ internal fun GalleryIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: Dp = GalleryDesign.target,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
+    tint: Color = GalleryPalette.onSurface,
 ) {
     val interaction = remember { MutableInteractionSource() }
     Box(
@@ -113,7 +115,48 @@ internal fun GalleryIconButton(
         ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(GalleryDesign.icon).galleryPressMotion(interaction), tint = tint)
+        GalleryIcon(icon, contentDescription = label, modifier = Modifier.size(GalleryDesign.icon).galleryPressMotion(interaction), tint = tint)
+    }
+}
+
+@Composable
+internal fun GalleryPillAction(
+    label: String,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val colors = GalleryPalette
+    val fill = when {
+        !enabled -> Modifier.clip(CircleShape).background(colors.surfaceContainerHighest)
+        primary -> Modifier.clip(CircleShape).background(colors.primary)
+        else -> Modifier.galleryPill()
+    }
+    Box(
+        modifier.then(fill)
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .heightIn(min = GalleryDesign.target)
+            .padding(horizontal = GalleryDesign.inset, vertical = GalleryDesign.gap),
+        contentAlignment = Alignment.Center,
+    ) {
+        GalleryText(
+            label,
+            modifier = Modifier.galleryPressMotion(interaction),
+            color = when {
+                !enabled -> colors.onSurfaceVariant
+                primary -> colors.onPrimary
+                else -> colors.onSurface
+            },
+            style = GalleryTypography.labelLarge,
+        )
     }
 }
 
@@ -126,7 +169,7 @@ internal fun GallerySegment(
     horizontalPadding: Dp = GalleryDesign.inset,
     showIndicator: Boolean = true,
 ) {
-    val colors = MaterialTheme.colorScheme
+    val colors = GalleryPalette
     val interaction = remember { MutableInteractionSource() }
     val fill by animateColorAsState(
         if (selected && showIndicator) colors.surfaceContainerHighest else Color.Transparent,
@@ -150,6 +193,6 @@ internal fun GallerySegment(
             .heightIn(min = GalleryDesign.target).padding(horizontal = horizontalPadding),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, modifier = Modifier.galleryPressMotion(interaction), color = textColor, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        GalleryText(label, modifier = Modifier.galleryPressMotion(interaction), color = textColor, style = GalleryTypography.labelLarge, maxLines = 1)
     }
 }

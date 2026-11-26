@@ -29,9 +29,10 @@ import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
+import rs.rajofearth.galery.ui.theme.GalleryIcon
+import rs.rajofearth.galery.ui.theme.GalleryText
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -106,6 +107,7 @@ internal fun MediaViewer(
     val backdrop = rememberGlassBackdrop(enabled = !currentItem.isVideo)
     val videoBackdrop = remember(currentItem.key) { mutableStateOf<GlassFrame?>(null) }
     val videoControlsVisible = remember(currentItem.key) { mutableStateOf(true) }
+    var photoControlsVisible by remember { mutableStateOf(true) }
     val mediaFrame: () -> GlassFrame? = remember(backdrop, videoBackdrop, currentItem.isVideo) {
         if (currentItem.isVideo) ({ videoBackdrop.value }) else ({ backdrop.frame })
     }
@@ -122,11 +124,15 @@ internal fun MediaViewer(
     }
     LaunchedEffect(currentItem.key) { onPageChanged(currentItem) }
     CompositionLocalProvider(LocalGalleryGlass provides backdrop) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)
+    BoxWithConstraints(Modifier.fillMaxSize().background(GalleryPalette.background)
         .windowInsetsPadding(WindowInsets.systemBars)) {
         val landscapeVideo = currentItem.isVideo && maxWidth > maxHeight
         val wideVideo = landscapeVideo && maxWidth >= 600.dp
-        val showViewerChrome = !landscapeVideo || videoControlsVisible.value
+        val showViewerChrome = when {
+            landscapeVideo -> videoControlsVisible.value
+            currentItem.isVideo -> true
+            else -> photoControlsVisible
+        }
         HorizontalPager(
             state = pager,
             modifier = Modifier.fillMaxSize().then(if (currentItem.isVideo) Modifier else Modifier.glassBackdropSource(backdrop)),
@@ -145,7 +151,7 @@ internal fun MediaViewer(
                     controlsVisible = videoControlsVisible.takeIf { selected },
                 )
             } else {
-                ViewerPhoto(item, onDismiss)
+                ViewerPhoto(item, onDismiss, onTap = { photoControlsVisible = !photoControlsVisible })
             }
         }
         AnimatedVisibility(showViewerChrome, enter = fadeIn(GalleryDesign.effects()), exit = fadeOut(GalleryDesign.effects())) {
@@ -168,7 +174,7 @@ internal fun MediaViewer(
                     scope.launch { pager.animateScrollToPage(index, animationSpec = GalleryDesign.spatial()) }
                 }
             }
-            val tint = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = GalleryDesign.viewerTintOpacity)
+            val tint = GalleryPalette.surfaceContainer.copy(alpha = GalleryDesign.viewerTintOpacity)
             Row(
                 Modifier.widthIn(max = 440.dp).fillMaxWidth()
                     .padding(horizontal = GalleryDesign.inset),
@@ -189,7 +195,7 @@ internal fun MediaViewer(
                                 stringResource(if (isFavorite) R.string.viewer_remove_favorite else R.string.viewer_add_favorite),
                                 onToggleFavorite,
                                 Modifier.semantics { selected = isFavorite },
-                                tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                tint = if (isFavorite) GalleryPalette.primary else GalleryPalette.onSurface,
                             )
                         }
                         if (onRestore == null && onTrash != null) {
@@ -214,7 +220,7 @@ private fun ViewerHeader(
     onDismiss: () -> Unit,
     frame: () -> GlassFrame?,
 ) {
-    val colors = MaterialTheme.colorScheme
+    val colors = GalleryPalette
     val tint = colors.surfaceContainer.copy(alpha = GalleryDesign.viewerTintOpacity)
     Row(
         Modifier.fillMaxWidth()
@@ -235,10 +241,10 @@ private fun ViewerHeader(
             if (timestamp > 0L) {
                 val date = remember(timestamp) { galleryDayLabel(timestamp) }
                 val time = remember(timestamp) { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(timestamp)) }
-                Text(date, style = MaterialTheme.typography.titleSmall)
-                Text(time, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                GalleryText(date, style = GalleryTypography.titleSmall)
+                GalleryText(time, style = GalleryTypography.labelSmall, color = colors.onSurfaceVariant)
             } else {
-                Text(item.displayName, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                GalleryText(item.displayName, color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -410,7 +416,7 @@ private fun ViewerVideo(
             exit = fadeOut(GalleryDesign.effects())) {
             Box(Modifier.fillMaxSize()) {
 
-                val colors = MaterialTheme.colorScheme
+                val colors = GalleryPalette
                 val frameAtDraw = { actionBackdrop?.value }
                 Row(
                     Modifier.align(if (wideVideo) Alignment.BottomStart else Alignment.BottomCenter)
@@ -433,7 +439,7 @@ private fun ViewerVideo(
                         horizontalArrangement = Arrangement.spacedBy(GalleryDesign.gap),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(formatDuration(state.positionMs), style = MaterialTheme.typography.labelSmall)
+                        GalleryText(formatDuration(state.positionMs), style = GalleryTypography.labelSmall)
                         VideoSeekBar(
                             fraction = if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f,
                             enabled = state.durationMs > 0,
@@ -450,8 +456,8 @@ private fun ViewerVideo(
                                 lastInteraction = SystemClock.uptimeMillis()
                             },
                         )
-                        Text(if (state.durationMs > 0) formatDuration(state.durationMs) else item.durationLabel,
-                            style = MaterialTheme.typography.labelSmall)
+                        GalleryText(if (state.durationMs > 0) formatDuration(state.durationMs) else item.durationLabel,
+                            style = GalleryTypography.labelSmall)
                     }
                     GalleryIconButton(
                         if (state.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
@@ -540,11 +546,13 @@ private fun VideoSeekBar(
 @Composable
 private fun ViewerPhoto(
     item: MediaItem, onDismiss: () -> Unit,
+    onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var zoom by remember(item.key) { mutableStateOf(ViewerZoomState()) }
     val backdrop = LocalGalleryGlass.current
     val dismiss by rememberUpdatedState(onDismiss)
+    val toggleChrome by rememberUpdatedState(onTap)
     val dragY by animateFloatAsState(zoom.dismissY,
         animationSpec = if (zoom.dismissY == 0f) GalleryDesign.spatial() else snap(),
         label = "Photo drag")
@@ -556,7 +564,7 @@ private fun ViewerPhoto(
                 handlePhotoGestures({ zoom }, { zoom = bounded(it) }, { dismiss() })
             }
             .pointerInput(item.key) {
-                detectTapGestures(onDoubleTap = { tap ->
+                detectTapGestures(onTap = { toggleChrome() }, onDoubleTap = { tap ->
                     val next = zoom.toggleDoubleTap()
                     val delta = Offset(size.width / 2f, size.height / 2f) - tap
                     zoom = if (next.scale > 1f) next.panBy(delta.x * (next.scale - 1), delta.y * (next.scale - 1))

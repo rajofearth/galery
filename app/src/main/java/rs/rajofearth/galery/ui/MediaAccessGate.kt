@@ -19,9 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import rs.rajofearth.galery.ui.theme.GalleryIcon
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
+import rs.rajofearth.galery.ui.theme.GalleryText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,7 +59,7 @@ private fun MediaAccessScreen(
     onOpenSettings: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)
+        modifier = Modifier.fillMaxSize().background(GalleryPalette.surface)
             .safeDrawingPadding().padding(horizontal = 24.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
@@ -69,32 +70,32 @@ private fun MediaAccessScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
-                Modifier.size(64.dp).background(MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                Modifier.size(64.dp).background(GalleryPalette.surfaceContainer, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
+                GalleryIcon(
                     imageVector = Icons.Outlined.PhotoLibrary,
                     contentDescription = null,
                     modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = GalleryPalette.onSurfaceVariant,
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Text(
+            GalleryText(
                 text = stringResource(R.string.media_access_title),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
+                style = GalleryTypography.headlineSmall,
+                color = GalleryPalette.onSurface,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(8.dp))
-            Text(
+            GalleryText(
                 text = stringResource(R.string.media_access_explanation),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = GalleryTypography.bodyMedium,
+                color = GalleryPalette.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(24.dp))
-            MediaPillAction(
+            GalleryPillAction(
                 label = stringResource(if (denied) R.string.media_access_retry else R.string.media_access_grant),
                 modifier = Modifier.fillMaxWidth(),
                 primary = true,
@@ -106,10 +107,10 @@ private fun MediaAccessScreen(
                     .heightIn(min = 48.dp).padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
+                GalleryText(
                     stringResource(R.string.media_access_open_settings),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelLarge,
+                    color = GalleryPalette.onSurfaceVariant,
+                    style = GalleryTypography.labelLarge,
                 )
             }
         }

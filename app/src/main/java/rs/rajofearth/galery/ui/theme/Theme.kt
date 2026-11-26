@@ -1,59 +1,79 @@
 package rs.rajofearth.galery.ui.theme
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
-import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
-val GaleryShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(28.dp),
-    largeIncreased = RoundedCornerShape(20.dp),
-    extraLargeIncreased = RoundedCornerShape(32.dp),
-    extraExtraLarge = RoundedCornerShape(48.dp),
-)
+internal object GalleryPalette {
+    val primary = Color(0xFFB7DAFF)
+    val onPrimary = Color(0xFF102436)
+    val background = Color.Black
+    val surface = Color.Black
+    val surfaceContainerLow = Color(0xFF131517)
+    val surfaceContainer = Color(0xFF1C1C1E)
+    val surfaceContainerHigh = Color(0xFF222528)
+    val surfaceContainerHighest = Color(0xFF2A2D30)
+    val onSurface = Color(0xFFF6F7F8)
+    val onSurfaceVariant = Color(0xFFA9AFB5)
+    val outlineVariant = Color(0xFF34383C)
+    val error = Color(0xFFFFB4AB)
+}
 
-private val GalleryColors = darkColorScheme(
-    primary = Color(0xFFB7DAFF),
-    onPrimary = Color(0xFF102436),
-    primaryContainer = Color(0xFF253544),
-    onPrimaryContainer = Color(0xFFE0EFFF),
-    secondaryContainer = Color(0xFF292C30),
-    onSecondaryContainer = Color(0xFFF6F7F8),
-    background = Color(0xFF000000),
-    surface = Color(0xFF000000),
-    surfaceContainerLow = Color(0xFF131517),
-    surfaceContainer = Color(0xFF1C1C1E),
-    surfaceContainerHigh = Color(0xFF222528),
-    surfaceContainerHighest = Color(0xFF2A2D30),
-    onBackground = Color(0xFFF6F7F8),
-    onSurface = Color(0xFFF6F7F8),
-    onSurfaceVariant = Color(0xFFA9AFB5),
-    outline = Color(0xFF747A80),
-    outlineVariant = Color(0xFF34383C),
-)
-
-private val GalleryTypography = Typography().let { default ->
-    default.copy(headlineMedium = default.headlineMedium.copy(fontWeight = FontWeight.Bold))
+internal object GalleryTypography {
+    val headlineMedium = TextStyle(fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold)
+    val headlineSmall = TextStyle(fontSize = 24.sp, lineHeight = 32.sp)
+    val titleLarge = TextStyle(fontSize = 22.sp, lineHeight = 28.sp)
+    val titleMedium = TextStyle(fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium)
+    val titleSmall = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
+    val bodyLarge = TextStyle(fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp)
+    val bodyMedium = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.25.sp)
+    val bodySmall = TextStyle(fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.4.sp)
+    val labelLarge = TextStyle(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
+    val labelSmall = TextStyle(fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
 }
 
 @Composable
-fun GaleryTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = GalleryColors,
-        shapes = GaleryShapes,
-        typography = GalleryTypography,
-    ) {
-        CompositionLocalProvider(LocalContentColor provides GalleryColors.onSurface, content = content)
-    }
+internal fun GalleryText(
+    text: String,
+    modifier: Modifier = Modifier,
+    color: Color = GalleryPalette.onSurface,
+    style: TextStyle = GalleryTypography.bodyLarge,
+    textAlign: TextAlign = TextAlign.Unspecified,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
+) {
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = style.merge(color = color, textAlign = textAlign),
+        maxLines = maxLines,
+        overflow = overflow,
+    )
+}
+
+@Composable
+internal fun GalleryIcon(
+    imageVector: ImageVector,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    tint: Color = GalleryPalette.onSurface,
+) {
+    Image(
+        painter = rememberVectorPainter(imageVector),
+        contentDescription = contentDescription,
+        modifier = modifier.size(24.dp),
+        colorFilter = ColorFilter.tint(tint),
+    )
 }

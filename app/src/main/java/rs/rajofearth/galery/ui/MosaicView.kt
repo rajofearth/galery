@@ -5,7 +5,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.runtime.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,10 +29,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import rs.rajofearth.galery.ui.theme.GalleryIcon
+import rs.rajofearth.galery.ui.theme.GalleryPalette
+import rs.rajofearth.galery.ui.theme.GalleryTypography
+import rs.rajofearth.galery.ui.theme.GalleryText
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -57,7 +58,7 @@ import java.util.TimeZone
 
 private val tileGap = 2.dp
 
-private sealed interface PhotoGridEntry {
+internal sealed interface PhotoGridEntry {
     val key: String
 
     data class Photo(val item: MediaItem) : PhotoGridEntry {
@@ -85,15 +86,19 @@ private fun photoGridEntries(items: List<MediaItem>, dated: Boolean): List<Photo
     }
 }
 
+internal class MediaTileContent(items: List<MediaItem>, val layout: MediaLayout, dated: Boolean) {
+    val grid = if (layout == MediaLayout.Grid) photoGridEntries(items, dated) else emptyList()
+    val rows = if (layout == MediaLayout.Mosaic) MosaicLayout.rows(items) else emptyList()
+}
+
 internal class MediaTilesState internal constructor(
-    val layout: MediaLayout,
     internal val listState: LazyListState,
     internal val gridState: LazyGridState,
-    items: List<MediaItem>,
-    dated: Boolean,
+    private val content: MediaTileContent,
 ) {
-    private val grid = if (layout == MediaLayout.Grid) photoGridEntries(items, dated) else emptyList()
-    internal val rows = if (layout == MediaLayout.Mosaic) MosaicLayout.rows(items) else emptyList()
+    val layout get() = content.layout
+    private val grid get() = content.grid
+    internal val rows get() = content.rows
 
     fun resetScroll() {
         listState.requestScrollToItem(0)
@@ -122,6 +127,7 @@ internal class MediaTilesState internal constructor(
 
     internal fun populateGrid(
         scope: androidx.compose.foundation.lazy.grid.LazyGridScope,
+        targets: MediaTileTargets,
         selectedKeys: Set<String>,
         onOpen: (MediaItem) -> Unit,
         onSelect: (MediaItem) -> Unit,
@@ -133,14 +139,14 @@ internal class MediaTilesState internal constructor(
             contentType = { if (it is PhotoGridEntry.Day) "date" else "media" },
         ) { entry ->
             when (entry) {
-                is PhotoGridEntry.Photo -> MediaTile(entry.item, selectedKeys, onOpen, onSelect, Modifier.aspectRatio(1f))
+                is PhotoGridEntry.Photo -> MediaTile(targets, entry.item, selectedKeys, onOpen, onSelect, Modifier.aspectRatio(1f))
                 is PhotoGridEntry.Day -> {
                     val text = if (entry.timestamp > 0L) {
                         remember(entry.timestamp) { galleryDayLabel(entry.timestamp) }
                     } else stringResource(R.string.photo_date_unknown)
-                    Text(
+                    GalleryText(
                         text,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = GalleryTypography.labelLarge,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     )
                 }
@@ -150,15 +156,17 @@ internal class MediaTilesState internal constructor(
 }
 
 @Composable
-internal fun rememberMediaTilesState(items: List<MediaItem>, layout: MediaLayout, dated: Boolean): MediaTilesState {
+internal fun rememberMediaTilesState(content: MediaTileContent): MediaTilesState {
     val list = rememberLazyListState()
     val grid = rememberLazyGridState()
-    return remember(items, layout, dated, list, grid) { MediaTilesState(layout, list, grid, items, dated) }
+    return remember(content, list, grid) { MediaTilesState(list, grid, content) }
 }
 
 @Composable
 internal fun MediaTiles(
     state: MediaTilesState,
+    mediaKeys: () -> List<String>,
+    onRangeSelectionChange: (Set<String>) -> Unit,
     selectedKeys: Set<String>,
     onOpen: (MediaItem) -> Unit,
     onSelect: (MediaItem) -> Unit,
@@ -176,6 +184,8 @@ internal fun MediaTiles(
             arrival.animateTo(1f, motion)
         }
     }
+    val targets = remember(state) { MediaTileTargets() }
+    val rangeGesture = mediaRangeGesture(state, targets, mediaKeys, selectedKeys, onRangeSelectionChange, contentPadding)
     val animatedModifier = modifier.graphicsLayer {
         alpha = 0.78f + 0.22f * arrival.value
         scaleX = 0.97f + 0.03f * arrival.value
@@ -186,16 +196,16 @@ internal fun MediaTiles(
             columns = GridCells.Adaptive(70.dp),
             contentPadding = contentPadding,
             state = state.gridState,
-            modifier = animatedModifier,
+            modifier = animatedModifier.then(rangeGesture),
             horizontalArrangement = Arrangement.spacedBy(tileGap),
             verticalArrangement = Arrangement.spacedBy(tileGap),
         ) {
-            state.populateGrid(this, selectedKeys, onOpen, onSelect)
+            state.populateGrid(this, targets, selectedKeys, onOpen, onSelect)
         }
     } else BoxWithConstraints(animatedModifier) {
         val availableWidth = maxWidth
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().then(rangeGesture),
             state = state.listState,
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(tileGap),
@@ -210,7 +220,7 @@ internal fun MediaTiles(
                     row.forEach { tile ->
                         key(tile.item.key) {
                             MediaTile(
-                                tile.item, selectedKeys, onOpen, onSelect,
+                                targets, tile.item, selectedKeys, onOpen, onSelect,
                                 Modifier.weight(tile.clampedAspect).fillMaxSize(),
                             )
                         }
@@ -223,6 +233,7 @@ internal fun MediaTiles(
 
 @Composable
 private fun MediaTile(
+    targets: MediaTileTargets,
     item: MediaItem,
     selectedKeys: Set<String>,
     onOpen: (MediaItem) -> Unit,
@@ -236,49 +247,48 @@ private fun MediaTile(
         modifier = modifier
             .clip(shape)
             .then(if (selectedKeys.isEmpty()) Modifier else Modifier.semantics { selected = isSelected })
-            .combinedClickable(
-                onClick = { if (selectedKeys.isEmpty()) onOpen(item) else onSelect(item) },
-                onLongClickLabel = selectionLabel,
-                onLongClick = { onSelect(item) },
-            ),
+            .then(targets.track(item.key))
+            .semantics {
+                onLongClick(selectionLabel) {
+                    if (!isSelected) onSelect(item)
+                    true
+                }
+            }
+            .clickable { if (selectedKeys.isEmpty()) onOpen(item) else onSelect(item) },
     ) {
         AsyncImage(
             model = rememberMediaImageModel(item, thumbnail = true),
             onSuccess = galleryImageReady(),
             contentDescription = item.displayName,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            modifier = Modifier.fillMaxSize().background(GalleryPalette.surfaceContainerHigh),
         )
         if (item.isVideo) {
-            Surface(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp),
-                shape = shape,
-                color = Color.Black.copy(alpha = 0.72f),
-                contentColor = Color.White,
+            Box(
+                Modifier.align(Alignment.BottomEnd).padding(4.dp)
+                    .background(Color.Black.copy(alpha = 0.72f)),
             ) {
-                Text(
+                GalleryText(
                     item.durationLabel,
-                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    style = GalleryTypography.labelSmall,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
         }
         if (isSelected) {
-            val colors = MaterialTheme.colorScheme
+            val colors = GalleryPalette
             Box(
                 Modifier.matchParentSize()
                     .background(colors.surface.copy(alpha = 0.20f))
                     .border(2.dp, colors.onSurface.copy(alpha = 0.88f), shape),
             )
-            Surface(
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(24.dp).galleryEntrance(item.key),
-                color = colors.onSurface,
-                contentColor = colors.surfaceContainer,
-                shape = CircleShape,
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(8.dp).size(24.dp)
+                    .galleryEntrance(item.key).background(colors.onSurface, CircleShape),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                }
+                GalleryIcon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp), tint = colors.surfaceContainer)
             }
         }
     }

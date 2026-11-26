@@ -1,8 +1,10 @@
 ---
-status: proposed
+status: superseded
 ---
 
 # Use official sample apps as the executable specification
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 Rather than inventing usage patterns from prose alone, we use real sample apps as the reference for idiomatic Material 3 Expressive code. Androidify covers M3E theming, motion, shape morphing, and CameraX, Media3, and Navigation 3 integration. Now in Android covers production architecture and adaptive layouts. Reply and the official codelabs cover theming, dynamic colour, and window size classes. The standalone Compose Material 3 Expressive Catalog and Material_3_Expressive_List provide component galleries. expressive.sanikant.dev tracks API status by version. FaceDown and Wallhue cover sensors, widgets, and Monet experiments. GestureDrivenTransitions covers predictive back.
 

@@ -24,10 +24,6 @@ Items explicitly left out of v1. Add to this only when the decision is made to d
 
 - Wear OS, per ADR-0010.
 
-## Motion
-
-- Shared-axis and fade-through navigation transitions that require Material 3 1.6 alpha, per ADR-0005. Revisit when a stable release has them.
-
 ## Known limitations of v1
 
 - Favourites are app-local IDs and are cleared when Galery is uninstalled.

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Compose BOM 2026.08.00 with explicit Material 3 1.5.0
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 BOM `2026.11.01` maps `androidx.compose.material3:material3:1.5.0` (stable, released 18 November 2026), checked against the published BOM POM. The build uses BOM `2026.08.00` with an explicit `implementation("androidx.compose.material3:material3:1.5.0")`. Version 1.5.0 is the first stable Material 3 release with the Expressive component set, so older alphas are unnecessary.
 

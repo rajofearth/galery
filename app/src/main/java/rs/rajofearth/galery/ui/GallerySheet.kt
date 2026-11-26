@@ -26,7 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
+import rs.rajofearth.galery.ui.theme.GalleryPalette
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -73,7 +73,7 @@ internal fun GallerySheet(
     val density = LocalDensity.current
     val dragThreshold = with(density) { 56.dp.toPx() }
     val flingThreshold = with(density) { 750.dp.toPx() }
-    val sheetTint = MaterialTheme.colorScheme.surfaceContainerLow
+    val sheetTint = GalleryPalette.surfaceContainerLow
     val requestDismiss = {
         closing = true
         visibility.targetState = false
@@ -166,6 +166,6 @@ internal fun GallerySheet(
 internal fun MediaSheetHandle() {
     Box(
         Modifier.size(32.dp, 4.dp)
-            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f), CircleShape),
+            .background(GalleryPalette.onSurfaceVariant.copy(alpha = 0.48f), CircleShape),
     )
 }

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Emphasized type scale and expanded shape system
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 We adopt the Expressive typography and shape systems: the dual type scale (15 baseline plus 15 emphasized styles, such as `titleLargeEmphasized`) and the expanded `Shapes` scale (`largeIncreased`, `extraLargeIncreased`, `extraExtraLarge`). The 35 `MaterialShapes` polygons and the `toShape()` and `toPath()` conversions are adopted too, but isolated behind an experimental opt-in (ADR-0008).
 

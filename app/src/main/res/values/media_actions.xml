@@ -2,14 +2,9 @@
 <resources>
     <string name="media_share_failed">Could not share the selection</string>
     <string name="media_share_limit">Select up to %1$d items to share</string>
-    <string name="media_trash_title">Move to trash</string>
     <string name="media_trash_unavailable">System trash is available on Android 11 and later</string>
     <string name="media_trash_failed">Could not finish moving the selection to trash</string>
     <string name="media_trash_partial">Some items were moved to trash</string>
-    <plurals name="media_trash_confirmation">
-        <item quantity="one">Move %1$d item to the system trash?</item>
-        <item quantity="other">Move %1$d items to the system trash?</item>
-    </plurals>
     <string name="media_details_title">Details</string>
     <string name="media_details_filename">Filename</string>
     <string name="media_details_folder">Folder</string>

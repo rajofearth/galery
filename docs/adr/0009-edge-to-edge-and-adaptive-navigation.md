@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Edge-to-edge and adaptive navigation from the start
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 The activity calls `enableEdgeToEdge()` and the root `Scaffold` applies its `innerPadding` to content. Navigation is designed for more than one window size: `NavigationBar` for compact screens, with `NavigationSuiteScaffold` and window size classes plus `ListDetailPaneScaffold` as the large-screen path.
 

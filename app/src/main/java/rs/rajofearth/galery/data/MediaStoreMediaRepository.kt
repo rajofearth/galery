@@ -5,12 +5,17 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.os.storage.StorageManager
 import android.provider.MediaStore
 import android.provider.MediaStore.MediaColumns
+import androidx.annotation.RequiresApi
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -18,29 +23,46 @@ import java.io.IOException
 import kotlin.coroutines.coroutineContext
 
 class MediaStoreMediaRepository(private val context: Context) {
+    suspend fun countTrashedMedia(): Int = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@withContext 0
+        val resolver = context.contentResolver
+        val ids = arrayOf(MediaColumns._ID)
+        MediaStore.getExternalVolumeNames(context).sumOf { volume ->
+            coroutineContext.ensureActive()
+            val images = mediaCollectionUri(volume, isVideo = false).toUri()
+            val videos = mediaCollectionUri(volume, isVideo = true).toUri()
+            resolver.queryTrash(images, ids).use { it.count } + resolver.queryTrash(videos, ids).use { it.count }
+        }
+    }
+
     suspend fun loadMedia(trashed: Boolean = false): List<MediaItem> = withContext(Dispatchers.IO) {
         if (trashed && Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return@withContext emptyList()
-        val nomediaByDirectory = mutableMapOf<File, Boolean>()
         val volumes = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.getExternalVolumeNames(context)
         } else {
             setOf("external")
         }
-        buildList {
-            for (volume in volumes) {
+        val batches = coroutineScope {
+            volumes.flatMap { volume ->
                 val volumeDirectory = volumeDirectory(volume)
-                for (isVideo in listOf(false, true)) {
+                listOf(false, true).map { isVideo ->
                     val collection = mediaCollectionUri(volume, isVideo).toUri()
-                    readCollection(context.contentResolver, collection, volume, volumeDirectory, isVideo, trashed) { item ->
-                        if (trashed || MediaVisibility.isVisible(item.displayName, item.relativePath, emptySet()) &&
-                            !hasNomediaAncestor(item, volumeDirectory, nomediaByDirectory)
-                        ) {
-                            add(item)
+                    async {
+                        val nomediaByDirectory = mutableMapOf<File, Boolean>()
+                        buildList {
+                            readCollection(context.contentResolver, collection, volume, volumeDirectory, isVideo, trashed) { item ->
+                                if (trashed || MediaVisibility.isVisible(item.displayName, item.relativePath, emptySet()) &&
+                                    !hasNomediaAncestor(item, volumeDirectory, nomediaByDirectory)
+                                ) {
+                                    add(item)
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }.sortedBy(MediaSort())
+            }.awaitAll()
+        }
+        batches.flatten().sortedBy(MediaSort())
     }
 
     private fun volumeDirectory(volume: String): File? {
@@ -83,10 +105,7 @@ private suspend fun readCollection(
     }.toTypedArray()
 
     val cursor = if (trashed && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        val arguments = android.os.Bundle().apply {
-            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
-        }
-        resolver.query(collection, projection, arguments, null)
+        resolver.queryTrash(collection, projection)
     } else {
         resolver.query(collection, projection, null, null, null)
     }
@@ -120,6 +139,13 @@ private suspend fun readCollection(
             )
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.R)
+private fun ContentResolver.queryTrash(collection: Uri, projection: Array<String>): Cursor {
+    val arguments = Bundle().apply { putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY) }
+    return query(collection, projection, arguments, null)
+        ?: throw IOException("MediaStore could not read $collection")
 }
 
 private fun Cursor.number(index: Int, default: Long = 0L): Long =

@@ -1,8 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Wallpaper-derived dynamic colour with an explicit fallback
+
+Superseded by [ADR 0013](0013-galery-owned-ui.md). Kept for historical context.
 
 Colour selection in the root theme uses `dynamicLightColorScheme(context)` or `dynamicDarkColorScheme(context)` on Android 12 and above (API 31) when dynamic colour is enabled. Otherwise it falls back to `darkColorScheme()` for dark mode and `expressiveLightColorScheme()` for light mode.
 

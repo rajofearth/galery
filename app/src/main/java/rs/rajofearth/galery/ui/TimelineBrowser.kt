@@ -1,5 +1,6 @@
 package rs.rajofearth.galery.ui
 
+import rs.rajofearth.galery.ui.theme.GalleryPalette
 import android.text.format.DateFormat
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.spring
@@ -182,7 +183,7 @@ private fun PeriodCover(period: TimelinePeriod, label: String, yearCover: Boolea
     val shape = GalleryDesign.cover
     Box(
         Modifier.fillMaxWidth().aspectRatio(if (yearCover) 1.10f else 1.55f)
-            .clip(shape).background(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer)
+            .clip(shape).background(GalleryPalette.surfaceContainer)
             .clickable(role = Role.Button, onClick = onClick),
     ) {
         AsyncImage(

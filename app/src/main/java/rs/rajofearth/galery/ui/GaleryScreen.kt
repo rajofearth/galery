@@ -1,5 +1,6 @@
 package rs.rajofearth.galery.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,8 +13,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -54,6 +58,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PhotoAlbum
@@ -131,6 +136,7 @@ internal fun GaleryScreen(
     onOpenSettings: () -> Unit,
     album: MediaAlbum?,
     onAlbumSelected: (MediaAlbum) -> Unit,
+    onManageAlbum: ((MediaAlbum) -> Unit)?,
     onExitAlbum: () -> Unit,
     albums: List<MediaAlbum>,
     albumScroll: LazyGridState,
@@ -160,6 +166,7 @@ internal fun GaleryScreen(
     onClearSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onShare: () -> Unit,
+    onMove: (() -> Unit)?,
     removeFavorites: Boolean,
     onFavoriteSelection: () -> Unit,
     onTrash: () -> Unit,
@@ -222,56 +229,73 @@ internal fun GaleryScreen(
                         if (selectionCount > 0) {
                             SelectionDock(
                                 selectionBusy, onShare, removeFavorites, onFavoriteSelection, onTrash, onDetails,
-                                if (trashOpen) onRestore else null,
+                                if (trashOpen) onRestore else null, onMove,
                             )
-                        } else if (!wide && !searching && !timelineOpen) {
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
-                                    .navigationBarsPadding()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                                verticalAlignment = Alignment.CenterVertically,
+                        } else if (!wide && !searching) {
+                            AnimatedVisibility(
+                                visible = !timelineOpen,
+                                enter = fadeIn(GalleryDesign.effects()) + slideInVertically(GalleryDesign.spatial()) { it / 4 },
+                                exit = fadeOut(GalleryDesign.effects()),
                             ) {
-                                if (tab == GaleryTab.AllMedia) {
-                                    RoundTool(Icons.Filled.DateRange, R.string.timeline_browse, GalleryDesign.dock) { timelineOpen = true }
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.75f))))
+                                        .navigationBarsPadding()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    if (tab == GaleryTab.AllMedia) {
+                                        RoundTool(Icons.Filled.DateRange, R.string.timeline_browse, GalleryDesign.dock) { timelineOpen = true }
+                                    }
+                                    LibraryDock(tab, onTabSelected)
+                                    if (tab == GaleryTab.AllMedia) PhotoFilterMenu(photoFilter, onPhotoFilter)
                                 }
-                                LibraryDock(tab, onTabSelected)
-                                if (tab == GaleryTab.AllMedia) PhotoFilterMenu(photoFilter, onPhotoFilter)
                             }
                         }
                     },
                 ) { innerPadding ->
-                    val gallery = Modifier.fillMaxSize().glassBackdropSource(backdrop).then(
-                        if (album != null || trashOpen || searching || timelineOpen || tab == GaleryTab.Favorites) {
-                            Modifier.galleryEntrance(listOf(album?.key, trashOpen, searching, timelineOpen))
-                        } else Modifier,
-                    )
-                    val body = gallery.padding(innerPadding)
-                    when {
-                        timelineOpen -> TimelineBrowser(timelineItems, gallery, innerPadding,
-                            onJumpToDay = { timelineOpen = false; onTimelineJump(it) },
-                            onClose = { timelineOpen = false })
-                        loadFailed && !hasMedia -> Box(body, contentAlignment = Alignment.Center) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                GalleryText(stringResource(R.string.media_load_error))
-                                GalleryPillAction(stringResource(R.string.media_access_retry), primary = true, onClick = onRetry)
+                    AnimatedContent(
+                        targetState = timelineOpen,
+                        modifier = Modifier.fillMaxSize(),
+                        transitionSpec = {
+                            val enter = fadeIn(GalleryDesign.effects()) +
+                                slideInVertically(GalleryDesign.spatial()) { it / 40 }
+                            enter togetherWith fadeOut(GalleryDesign.effects())
+                        },
+                        label = "Calendar navigation",
+                    ) { showTimeline ->
+                        val gallery = Modifier.fillMaxSize().glassBackdropSource(backdrop).then(
+                            if (album != null || trashOpen || searching || tab == GaleryTab.Favorites) {
+                                Modifier.galleryEntrance(listOf(album?.key, trashOpen, searching))
+                            } else Modifier,
+                        )
+                        val body = gallery.padding(innerPadding)
+                        when {
+                            showTimeline -> TimelineBrowser(timelineItems, innerPadding,
+                                onJumpToDay = { timelineOpen = false; onTimelineJump(it) },
+                                onClose = { timelineOpen = false })
+                            loadFailed && !hasMedia -> Box(body, contentAlignment = Alignment.Center) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    GalleryText(stringResource(R.string.media_load_error))
+                                    GalleryPillAction(stringResource(R.string.media_access_retry), primary = true, onClick = onRetry)
+                                }
                             }
+                            !hasMedia -> Box(body, contentAlignment = Alignment.Center) { LibraryLoadingIndicator() }
+                            showAlbums -> AlbumGrid(
+                                albums, favoriteCover, favoriteCount, trashCount, onAlbumSelected, onManageAlbum, onOpenTrash,
+                                gallery, innerPadding, wide, albumScroll, { onTabSelected(GaleryTab.Favorites) },
+                            )
+                            !showAlbums && hasItems -> mediaTiles(gallery, innerPadding)
+                            else -> EmptyLibrary(
+                                if (query.isBlank()) tab.icon else Icons.Filled.Search,
+                                if (query.isNotBlank()) R.string.no_search_results else if (trashOpen) R.string.trash_empty else tab.empty,
+                                body,
+                            )
                         }
-                        !hasMedia -> Box(body, contentAlignment = Alignment.Center) { LibraryLoadingIndicator() }
-                        showAlbums -> AlbumGrid(
-                            albums, favoriteCover, favoriteCount, trashCount, onAlbumSelected, onOpenTrash,
-                            gallery, innerPadding, wide, albumScroll, { onTabSelected(GaleryTab.Favorites) },
-                        )
-                        !showAlbums && hasItems -> mediaTiles(gallery, innerPadding)
-                        else -> EmptyLibrary(
-                            if (query.isBlank()) tab.icon else Icons.Filled.Search,
-                            if (query.isNotBlank()) R.string.no_search_results else if (trashOpen) R.string.trash_empty else tab.empty,
-                            body,
-                        )
                     }
                 }
             }
@@ -286,6 +310,7 @@ private fun AlbumGrid(
     favoriteCount: Int,
     trashCount: Int?,
     onOpen: (MediaAlbum) -> Unit,
+    onManage: ((MediaAlbum) -> Unit)?,
     onOpenTrash: (() -> Unit)?,
     modifier: Modifier,
     contentPadding: PaddingValues,
@@ -309,7 +334,7 @@ private fun AlbumGrid(
                 AlbumSectionTitle(R.string.album_shortcuts)
             }
             items(shortcuts, key = { it.key }) {
-                AlbumCover(it, onOpen)
+                AlbumCover(it, onOpen, onManage)
             }
         }
         if (folders.isNotEmpty()) {
@@ -317,15 +342,15 @@ private fun AlbumGrid(
                 AlbumSectionTitle(R.string.album_folders)
             }
             items(folders, key = { it.key }) {
-                AlbumCover(it, onOpen)
+                AlbumCover(it, onOpen, onManage)
             }
         }
         item(key = "favorites") {
-            AlbumCover(stringResource(R.string.favorites), favoriteCover, favoriteCount, Icons.Filled.FavoriteBorder, onOpenFavorites)
+            AlbumCover(stringResource(R.string.favorites), favoriteCover, favoriteCount, Icons.Filled.FavoriteBorder, onOpen = onOpenFavorites)
         }
         if (onOpenTrash != null) {
             item(key = "trash") {
-                AlbumCover(stringResource(R.string.trash_album), null, trashCount, Icons.Filled.DeleteOutline, onOpenTrash)
+                AlbumCover(stringResource(R.string.trash_album), null, trashCount, Icons.Filled.DeleteOutline, onOpen = onOpenTrash)
             }
         }
     }
@@ -369,8 +394,11 @@ private fun AlbumSectionTitle(label: Int) {
 }
 
 @Composable
-private fun AlbumCover(album: MediaAlbum, onOpen: (MediaAlbum) -> Unit) {
-    AlbumCover(album.displayName(), album.items.firstOrNull(), album.items.size) { onOpen(album) }
+private fun AlbumCover(album: MediaAlbum, onOpen: (MediaAlbum) -> Unit, onManage: ((MediaAlbum) -> Unit)?) {
+    AlbumCover(
+        album.displayName(), album.items.firstOrNull(), album.items.size,
+        onLongClick = onManage?.let { { it(album) } },
+    ) { onOpen(album) }
 }
 
 @Composable
@@ -379,10 +407,16 @@ private fun AlbumCover(
     cover: MediaItem?,
     count: Int?,
     fallback: ImageVector = Icons.Filled.PhotoAlbum,
+    onLongClick: (() -> Unit)? = null,
     onOpen: () -> Unit,
 ) {
     Column(
-        Modifier.fillMaxWidth().clip(GalleryDesign.cover).clickable(role = Role.Button, onClick = onOpen),
+        Modifier.fillMaxWidth().clip(GalleryDesign.cover).combinedClickable(
+            role = Role.Button,
+            onLongClickLabel = stringResource(R.string.album_actions),
+            onLongClick = onLongClick,
+            onClick = onOpen,
+        ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
@@ -437,7 +471,7 @@ private fun EmptyLibrary(icon: ImageVector, label: Int, modifier: Modifier) {
 }
 
 @Composable
-private fun LibraryLoadingIndicator() {
+internal fun LibraryLoadingIndicator() {
     val colors = GalleryPalette
     val rotation by rememberInfiniteTransition(label = "Library loading").animateFloat(
         initialValue = -90f,
@@ -591,6 +625,7 @@ private fun SelectionDock(
     onTrash: () -> Unit,
     onDetails: () -> Unit,
     onRestore: (() -> Unit)?,
+    onMove: (() -> Unit)?,
 ) {
     var menu by remember { mutableStateOf(false) }
     Row(
@@ -603,6 +638,7 @@ private fun SelectionDock(
                 ToolIcon(Icons.Filled.Restore, R.string.restore_media, onRestore)
             } else {
                 ToolIcon(Icons.Filled.Share, R.string.share_selection, onShare)
+                if (!busy && onMove != null) ToolIcon(Icons.Filled.Folder, R.string.album_move, onMove)
                 ToolIcon(
                     if (removeFavorites) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     if (removeFavorites) R.string.viewer_remove_favorite else R.string.viewer_add_favorite,

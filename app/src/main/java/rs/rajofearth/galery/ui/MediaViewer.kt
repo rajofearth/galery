@@ -1,7 +1,6 @@
 package rs.rajofearth.galery.ui
 
 import android.content.pm.ActivityInfo
-import android.os.SystemClock
 import android.view.TextureView
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.BackHandler
@@ -50,11 +49,11 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionOnScreen
-import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -106,8 +105,9 @@ internal fun MediaViewer(
     val scope = rememberCoroutineScope()
     val backdrop = rememberGlassBackdrop(enabled = !currentItem.isVideo)
     val videoBackdrop = remember(currentItem.key) { mutableStateOf<GlassFrame?>(null) }
-    val videoControlsVisible = remember(currentItem.key) { mutableStateOf(true) }
-    var photoControlsVisible by remember { mutableStateOf(true) }
+    var showViewerChrome by remember { mutableStateOf(true) }
+    val toggleChrome: () -> Unit = { showViewerChrome = !showViewerChrome }
+    val chromeAction = stringResource(if (showViewerChrome) R.string.viewer_hide_controls else R.string.viewer_show_controls)
     val mediaFrame: () -> GlassFrame? = remember(backdrop, videoBackdrop, currentItem.isVideo) {
         if (currentItem.isVideo) ({ videoBackdrop.value }) else ({ backdrop.frame })
     }
@@ -128,11 +128,6 @@ internal fun MediaViewer(
         .windowInsetsPadding(WindowInsets.systemBars)) {
         val landscapeVideo = currentItem.isVideo && maxWidth > maxHeight
         val wideVideo = landscapeVideo && maxWidth >= 600.dp
-        val showViewerChrome = when {
-            landscapeVideo -> videoControlsVisible.value
-            currentItem.isVideo -> true
-            else -> photoControlsVisible
-        }
         HorizontalPager(
             state = pager,
             modifier = Modifier.fillMaxSize().then(if (currentItem.isVideo) Modifier else Modifier.glassBackdropSource(backdrop)),
@@ -148,10 +143,12 @@ internal fun MediaViewer(
                     active = selected && visible,
                     actionBackdrop = videoBackdrop.takeIf { selected },
                     wideVideo = wideVideo,
-                    controlsVisible = videoControlsVisible.takeIf { selected },
+                    showControls = showViewerChrome,
+                    chromeAction = chromeAction,
+                    onTap = toggleChrome,
                 )
             } else {
-                ViewerPhoto(item, onDismiss, onTap = { photoControlsVisible = !photoControlsVisible })
+                ViewerPhoto(item, onDismiss, chromeAction, onTap = toggleChrome)
             }
         }
         AnimatedVisibility(showViewerChrome, enter = fadeIn(GalleryDesign.effects()), exit = fadeOut(GalleryDesign.effects())) {
@@ -292,7 +289,9 @@ private fun ViewerVideo(
     item: MediaItem, active: Boolean,
     actionBackdrop: MutableState<GlassFrame?>?,
     wideVideo: Boolean,
-    controlsVisible: MutableState<Boolean>?,
+    showControls: Boolean,
+    chromeAction: String,
+    onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -314,23 +313,7 @@ private fun ViewerVideo(
     var rendered by remember { mutableStateOf(false) }
     var scrubbing by remember { mutableStateOf(false) }
     var ended by remember { mutableStateOf(false) }
-    var lastInteraction by remember { mutableLongStateOf(SystemClock.uptimeMillis()) }
-    val pageControlsVisible = remember(item.key) { mutableStateOf(true) }
-    val controlsState = controlsVisible ?: pageControlsVisible
-    var showControls by controlsState
-    val accessibility = LocalAccessibilityManager.current
-    val timeout = accessibility?.calculateRecommendedTimeoutMillis(
-        VideoControlsVisibility.VISIBLE_DURATION_MS,
-        containsIcons = true, containsText = true, containsControls = true,
-    ) ?: VideoControlsVisibility.VISIBLE_DURATION_MS
-    LaunchedEffect(lastInteraction, timeout, scrubbing, playingPage, state.isPlaying) {
-        showControls = true
-        if (!playingPage) return@LaunchedEffect
-        val hideAfter = VideoControlsVisibility.hideAfter(state.isPlaying, scrubbing, timeout)
-            ?: return@LaunchedEffect
-        delay(hideAfter)
-        showControls = false
-    }
+    val toggleChrome by rememberUpdatedState(onTap)
     DisposableEffect(item.key, playingPage) {
         if (!playingPage) return@DisposableEffect onDispose {}
         val exo = ExoPlayer.Builder(context).build()
@@ -345,7 +328,6 @@ private fun ViewerVideo(
                 if (playbackState == Player.STATE_ENDED) {
                     state = state.onPlaybackEnded()
                     ended = true
-                    lastInteraction = SystemClock.uptimeMillis()
                 }
             }
         }
@@ -385,7 +367,6 @@ private fun ViewerVideo(
         }
         state = state.togglePlay()
         player?.playWhenReady = state.isPlaying
-        lastInteraction = SystemClock.uptimeMillis()
     }
     val frame = rememberBlurredVideoFrame(texture, aspect, playingPage && rendered && bounds.size != IntSize.Zero,
         state.isPlaying, state.positionMs)
@@ -405,12 +386,13 @@ private fun ViewerVideo(
                 AsyncImage(rememberMediaImageModel(item), item.displayName, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             }
         }
-        Box(Modifier.fillMaxSize().pointerInput(item.key, controlsState) {
-            detectTapGestures {
-                lastInteraction = SystemClock.uptimeMillis()
-                showControls = true
-            }
-        })
+        if (active) {
+            Box(
+                Modifier.fillMaxSize()
+                    .semantics { onClick(chromeAction) { toggleChrome(); true } }
+                    .pointerInput(item.key) { detectTapGestures { toggleChrome() } },
+            )
+        }
         AnimatedVisibility(visible = showControls && active,
             enter = fadeIn(GalleryDesign.effects()),
             exit = fadeOut(GalleryDesign.effects())) {
@@ -448,12 +430,10 @@ private fun ViewerVideo(
                                 scrubbing = true
                                 ended = false
                                 state = state.onPositionChange((it * state.durationMs).toLong())
-                                lastInteraction = SystemClock.uptimeMillis()
                             },
                             onFinished = {
                                 player?.seekTo(state.positionMs)
                                 scrubbing = false
-                                lastInteraction = SystemClock.uptimeMillis()
                             },
                         )
                         GalleryText(if (state.durationMs > 0) formatDuration(state.durationMs) else item.durationLabel,
@@ -465,7 +445,6 @@ private fun ViewerVideo(
                         {
                             state = state.toggleMute()
                             player?.volume = if (state.isMuted) 0f else 1f
-                            lastInteraction = SystemClock.uptimeMillis()
                         },
                         Modifier.sampledGlass(CircleShape, colors.surfaceContainer, frameAtDraw),
                     )
@@ -546,6 +525,7 @@ private fun VideoSeekBar(
 @Composable
 private fun ViewerPhoto(
     item: MediaItem, onDismiss: () -> Unit,
+    chromeAction: String,
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -559,6 +539,7 @@ private fun ViewerPhoto(
 
     Box(
         modifier.fillMaxSize().clipToBounds()
+            .semantics { onClick(chromeAction) { toggleChrome(); true } }
             .pointerInput(item.key) {
                 fun bounded(value: ViewerZoomState) = value.boundPan(size.width, size.height, item.aspectRatio)
                 handlePhotoGestures({ zoom }, { zoom = bounded(it) }, { dismiss() })

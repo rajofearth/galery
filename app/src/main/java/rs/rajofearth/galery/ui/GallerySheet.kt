@@ -57,6 +57,7 @@ import kotlin.math.roundToInt
 internal fun GallerySheet(
     onDismissRequest: () -> Unit,
     frameAtDraw: (() -> GlassFrame?)? = null,
+    dismissEnabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val onDismiss by rememberUpdatedState(onDismissRequest)
@@ -75,8 +76,10 @@ internal fun GallerySheet(
     val flingThreshold = with(density) { 750.dp.toPx() }
     val sheetTint = GalleryPalette.surfaceContainerLow
     val requestDismiss = {
-        closing = true
-        visibility.targetState = false
+        if (dismissEnabled) {
+            closing = true
+            visibility.targetState = false
+        }
     }
     LaunchedEffect(closing, visibility.isIdle, visibility.currentState) {
         if (closing && visibility.isIdle && !visibility.currentState) onDismiss()
@@ -125,7 +128,7 @@ internal fun GallerySheet(
                             }
                         }
                         .semantics {
-                            dismiss {
+                            if (dismissEnabled) dismiss {
                                 requestDismiss()
                                 true
                             }
@@ -140,7 +143,7 @@ internal fun GallerySheet(
                                     dragOffset = (dragOffset + it).coerceAtLeast(0f)
                                 },
                                 orientation = Orientation.Vertical,
-                                enabled = !closing,
+                                enabled = !closing && dismissEnabled,
                                 onDragStarted = { dragging = true },
                                 onDragStopped = { velocity ->
                                     dragging = false

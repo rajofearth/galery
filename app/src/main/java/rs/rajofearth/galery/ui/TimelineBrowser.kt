@@ -2,11 +2,13 @@ package rs.rajofearth.galery.ui
 
 import rs.rajofearth.galery.ui.theme.GalleryPalette
 import android.text.format.DateFormat
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Canvas
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,21 +21,18 @@ import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -43,17 +42,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -67,15 +63,29 @@ import kotlinx.coroutines.withContext
 import rs.rajofearth.galery.R
 import rs.rajofearth.galery.data.MediaItem
 
+@Composable
+internal fun TimelineTransition(open: Boolean, content: @Composable (Boolean) -> Unit) {
+    val offset = with(LocalDensity.current) { GalleryDesign.gap.roundToPx() }
+    AnimatedContent(
+        targetState = open,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val direction = if (targetState) 1 else -1
+            (fadeIn(GalleryDesign.effects()) + slideInVertically(GalleryDesign.spatial()) { direction * offset })
+                .togetherWith(fadeOut(GalleryDesign.effects()) + slideOutVertically(GalleryDesign.spatial()) { -direction * offset })
+        },
+        label = "Timeline navigation",
+    ) { content(it) }
+}
 
 @Composable
 internal fun TimelineBrowser(
     items: List<MediaItem>,
-    modifier: Modifier,
     contentPadding: PaddingValues,
     onJumpToDay: (MediaItem) -> Unit,
     onClose: () -> Unit,
 ) {
+    val backdrop = rememberGlassBackdrop()
     val locale = LocalLocale.current.platformLocale
     val index by produceState(initialValue = TimelineIndex(), items) {
         value = withContext(Dispatchers.Default) { buildTimelineIndex(items) { ensureActive() } }
@@ -104,75 +114,75 @@ internal fun TimelineBrowser(
     }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp).fillMaxSize().then(modifier),
-            state = scrollState,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(
-                start = contentPadding.calculateStartPadding(layoutDirection) + 16.dp,
-                top = contentPadding.calculateTopPadding() + 4.dp,
-                end = contentPadding.calculateEndPadding(layoutDirection) + 16.dp,
-                bottom = maxOf(navPadding, contentPadding.calculateBottomPadding()) + 72.dp,
-            ),
-        ) {
-            items(visiblePeriods, key = { it.key }) { period ->
-                val label = remember(period.key, viewingYears, locale, undated) {
-                    when {
-                        period.year == UnknownYear -> undated
-                        viewingYears -> yearFormatter.format(period.anchor.dateMillis)
-                        else -> monthFormatter.format(period.anchor.dateMillis)
+        AnimatedContent(
+            targetState = viewingYears,
+            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 560.dp)
+                .fillMaxSize().glassBackdropSource(backdrop),
+            transitionSpec = { fadeIn(GalleryDesign.effects()) togetherWith fadeOut(GalleryDesign.effects()) },
+            label = "Timeline periods",
+        ) { years ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                state = if (years) yearsState else monthsState,
+                verticalArrangement = Arrangement.spacedBy(GalleryDesign.separation),
+                contentPadding = PaddingValues(
+                    start = contentPadding.calculateStartPadding(layoutDirection) + GalleryDesign.inset,
+                    top = contentPadding.calculateTopPadding() + 4.dp,
+                    end = contentPadding.calculateEndPadding(layoutDirection) + GalleryDesign.inset,
+                    bottom = maxOf(navPadding + GalleryDesign.dock + GalleryDesign.gap * 2, contentPadding.calculateBottomPadding()),
+                ),
+            ) {
+                items(if (years) index.years else months, key = { it.key }) { period ->
+                    val label = remember(period.key, years, locale, undated) {
+                        when {
+                            period.year == UnknownYear -> undated
+                            years -> yearFormatter.format(period.anchor.dateMillis)
+                            else -> monthFormatter.format(period.anchor.dateMillis)
+                        }
                     }
-                }
-                PeriodCover(period, label, viewingYears) {
-                    if (viewingYears && period.year != UnknownYear) showMonths(period.year)
-                    else onJumpToDay(period.anchor)
+                    PeriodCover(period, label, years) {
+                        if (years && period.year != UnknownYear) showMonths(period.year)
+                        else onJumpToDay(period.anchor)
+                    }
                 }
             }
         }
-
-        Row(
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val closeLabel = stringResource(R.string.timeline_close)
-            Box(
-                Modifier.size(56.dp).galleryPill()
-                    .clickable(role = Role.Button, onClick = onClose)
-                    .semantics { contentDescription = closeLabel },
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size(20.dp)) {
-                    val inset = 4.dp.toPx()
-                    val far = size.width - inset
-                    val thickness = 1.5.dp.toPx()
-                    drawLine(Color.White, Offset(inset, inset), Offset(far, far), thickness, StrokeCap.Round)
-                    drawLine(Color.White, Offset(far, inset), Offset(inset, far), thickness, StrokeCap.Round)
-                }
-            }
+        CompositionLocalProvider(LocalGalleryGlass provides backdrop) {
             Row(
-                Modifier.galleryPill().selectableGroup().padding(4.dp),
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding()
+                    .padding(horizontal = GalleryDesign.inset, vertical = GalleryDesign.gap),
+                horizontalArrangement = Arrangement.spacedBy(GalleryDesign.separation),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TimelineTab(R.string.timeline_years, viewingYears) { viewingYears = true }
-                TimelineTab(R.string.timeline_months, !viewingYears) {
-                    if (viewingYears) {
-                        val year = visiblePeriods.getOrNull(scrollState.firstVisibleItemIndex)?.year
-                        if (year == null || year == UnknownYear) {
-                            selectedYear = null
-                            monthsState.requestScrollToItem(0)
-                            viewingYears = false
-                        } else {
-                            showMonths(year)
+                GalleryIconButton(
+                    Icons.Filled.Close,
+                    stringResource(R.string.timeline_close),
+                    onClose,
+                    Modifier.galleryPill(),
+                    size = GalleryDesign.dock,
+                )
+                GalleryTabs(
+                    listOf(stringResource(R.string.timeline_years), stringResource(R.string.timeline_months), stringResource(R.string.timeline_days)),
+                    if (viewingYears) 0 else 1,
+                    horizontalPadding = GalleryDesign.separation,
+                    onSelect = { destination ->
+                        when (destination) {
+                            0 -> viewingYears = true
+                            1 -> if (viewingYears) {
+                                val year = visiblePeriods.getOrNull(scrollState.firstVisibleItemIndex)?.year
+                                if (year == null || year == UnknownYear) {
+                                    selectedYear = null
+                                    monthsState.requestScrollToItem(0)
+                                    viewingYears = false
+                                } else showMonths(year)
+                            }
+                            2 -> {
+                                val anchor = visiblePeriods.getOrNull(scrollState.firstVisibleItemIndex)?.anchor ?: items.firstOrNull()
+                                if (anchor != null) onJumpToDay(anchor) else onClose()
+                            }
                         }
-                    }
-                }
-                TimelineTab(R.string.timeline_days, false) {
-                    val anchor = visiblePeriods.getOrNull(scrollState.firstVisibleItemIndex)?.anchor
-                        ?: items.firstOrNull()
-                    if (anchor != null) onJumpToDay(anchor) else onClose()
-                }
+                    },
+                )
             }
         }
     }
@@ -208,11 +218,6 @@ private fun PeriodCover(period: TimelinePeriod, label: String, yearCover: Boolea
             )
         }
     }
-}
-
-@Composable
-private fun TimelineTab(label: Int, selected: Boolean, onClick: () -> Unit) {
-    GallerySegment(stringResource(label), selected, onClick, horizontalPadding = GalleryDesign.separation)
 }
 
 private const val UnknownYear = -1

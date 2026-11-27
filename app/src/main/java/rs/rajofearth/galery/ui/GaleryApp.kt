@@ -117,7 +117,7 @@ fun GaleryApp() {
             )
         },
     ) {
-        GaleryLibrary(refresh, updates, onRefresh = { refresh++ })
+        GaleryLibrary(refresh, updates, foreground, onRefresh = { refresh++ })
     }
 }
 
@@ -128,7 +128,7 @@ private data class ViewerSession(val items: List<MediaItem>, val initialIndex: I
 }
 
 @Composable
-private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, onRefresh: () -> Unit) {
+private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, foreground: Boolean, onRefresh: () -> Unit) {
     val context = LocalContext.current
     val repository = remember(context) { MediaStoreMediaRepository(context.applicationContext) }
     val focusManager = LocalFocusManager.current
@@ -234,11 +234,25 @@ private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, onRefresh: () -
 
     val backdrop = rememberGlassBackdrop(enabled = visibleItems.isNotEmpty() && viewer == null)
     val viewerGlass = remember { mutableStateOf<(() -> GlassFrame?)?>(null) }
+    GalleryUpdateHost(
+        updates, foreground, canOffer = viewer == null && selectedVisibleKeys.isEmpty() && !searching,
+        frameAtDraw = if (settingsOpen) null else ({ backdrop.frame }),
+    )
     val actions = rememberMediaSelectionActions(
         frameAtDraw = { if (viewer == null) backdrop.frame else viewerGlass.value?.invoke() },
         onMediaChanged = {
             selectedKeys = emptySet()
             if (viewer != null) closeRequested = true
+            onRefresh()
+        },
+    )
+    val albumActions = rememberAlbumManagement(
+        albums = { albumIndex.value },
+        frameAtDraw = { backdrop.frame },
+        onTrash = actions.trash,
+        onMediaChanged = {
+            selectedKeys = emptySet()
+            albumKey = null
             onRefresh()
         },
     )
@@ -280,6 +294,8 @@ private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, onRefresh: () -
         Box(Modifier.fillMaxSize()) {
             GaleryScreen(
                 tab = tab,
+                onManageAlbum = albumActions.manage?.takeUnless { actions.isBusy },
+                onMove = if (trashOpen) null else albumActions.move?.let { move -> { move(selectedMedia()) } },
                 onOpenSettings = { settingsOpen = true },
                 onTabSelected = {
                     if (it != tab) {
@@ -333,7 +349,7 @@ private fun GaleryLibrary(refresh: Int, updates: GalleryUpdates, onRefresh: () -
                     prefs.sort = it
                 },
                 selectionCount = selectedVisibleKeys.size,
-                selectionBusy = actions.isBusy,
+                selectionBusy = actions.isBusy || albumActions.isBusy,
                 onClearSelection = { selectedKeys = emptySet() },
                 onSelectAll = { selectedKeys = visibleKeys.value },
                 onShare = { actions.share(selectedMedia()) },

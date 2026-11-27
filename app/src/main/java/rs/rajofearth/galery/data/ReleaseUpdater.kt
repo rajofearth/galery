@@ -3,6 +3,7 @@ package rs.rajofearth.galery.data
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.IOException
@@ -22,7 +23,15 @@ private const val MAX_APK_BYTES = 8 * 1024 * 1024
 private const val MAX_METADATA_BYTES = 128 * 1024
 private const val STALE_APK_MS = 60 * 60 * 1000L
 
-internal data class GaleryRelease(val version: String, val url: String, val size: Int, val sha256: String)
+internal data class GaleryRelease(
+    val version: String,
+    val url: String,
+    val size: Int,
+    val sha256: String,
+    val notes: String,
+)
+
+internal data class UpdateDownloadProgress(val bytes: Int, val bytesPerSecond: Long = 0)
 
 class GaleryUpdateFiles : FileProvider()
 
@@ -52,13 +61,17 @@ internal class ReleaseUpdater(private val context: Context) {
                 if (asset.optString("browser_download_url") != url ||
                     size !in 1L..MAX_APK_BYTES.toLong() || !sha256.matches(Regex("[0-9a-fA-F]{64}"))
                 ) throw IOException("Invalid release asset")
-                return@connect GaleryRelease(version, url, size.toInt(), sha256)
+                return@connect GaleryRelease(version, url, size.toInt(), sha256, release.optString("body").take(12_000))
             }
             throw IOException("Release has no Galery APK")
         }
     }
 
-    suspend fun download(release: GaleryRelease) = withContext(Dispatchers.IO) {
+    suspend fun download(
+        release: GaleryRelease,
+        onProgress: (UpdateDownloadProgress) -> Unit,
+        onVerifying: () -> Unit,
+    ) = withContext(Dispatchers.IO) {
         var ready = false
         try {
             apk.parentFile?.mkdirs()
@@ -69,20 +82,30 @@ internal class ReleaseUpdater(private val context: Context) {
                 response.inputStream.use { input ->
                     apk.outputStream().use { output ->
                         val buffer = ByteArray(8192)
-                        var remaining = release.size
+                        var received = 0
+                        val started = SystemClock.elapsedRealtime()
+                        var lastReport = started
                         while (true) {
                             job.ensureActive()
                             val count = input.read(buffer)
                             if (count == -1) break
-                            remaining -= count
-                            if (remaining < 0) throw IOException("APK is larger than advertised")
+                            received += count
+                            if (received > release.size) throw IOException("APK is larger than advertised")
                             output.write(buffer, 0, count)
                             digest.update(buffer, 0, count)
+                            val now = SystemClock.elapsedRealtime()
+                            if (now - lastReport >= 250 || received == release.size) {
+                                job.ensureActive()
+                                onProgress(UpdateDownloadProgress(received, received * 1000L / (now - started).coerceAtLeast(1)))
+                                lastReport = now
+                            }
                         }
-                        if (remaining != 0) throw IOException("Incomplete APK")
+                        if (received != release.size) throw IOException("Incomplete APK")
                     }
                 }
             }
+            job.ensureActive()
+            onVerifying()
             val hash = digest.digest().joinToString("") { "%02x".format(it) }
             if (!hash.equals(release.sha256, ignoreCase = true)) throw IOException("APK checksum differs")
             verifyPackage(release.version)
@@ -137,7 +160,7 @@ private fun <T> connect(address: String, read: (HttpsURLConnection) -> T): T {
         ) throw IOException("Unexpected update host")
         val connection = next.openConnection() as HttpsURLConnection
         connection.connectTimeout = 8000
-        connection.readTimeout = 8000
+        connection.readTimeout = 15000
         connection.instanceFollowRedirects = false
         connection.setRequestProperty("User-Agent", "Galery-Android")
         try {

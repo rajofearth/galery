@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="album_actions">Album actions</string>
+    <string name="album_move">Move to album</string>
+    <string name="album_move_title">Move to album</string>
+    <string name="album_create">New album</string>
+    <string name="album_create_move">Create and move</string>
+    <string name="album_rename">Rename album</string>
+    <string name="album_delete">Delete album</string>
+    <string name="album_name">Album name</string>
+    <string name="album_cancel">Cancel</string>
+    <string name="album_name_used">An album with this name already exists here.</string>
+    <string name="album_name_invalid">Use a folder name without slashes, special characters, or leading dots.</string>
+    <string name="album_move_same_storage">Select items on one storage device to move them together.</string>
+    <string name="album_move_permission_failed">Could not request permission to move these items.</string>
+    <string name="album_move_failed">Could not move the selected items.</string>
+    <string name="album_move_partial">Moved %1$d of %2$d items. The other items stayed where they were.</string>
+    <string name="album_renamed">Renamed album to %1$s.</string>
+    <plurals name="album_move_prompt">
+        <item quantity="one">Choose a folder on the same storage device for %d item.</item>
+        <item quantity="other">Choose a folder on the same storage device for %d items.</item>
+    </plurals>
+    <plurals name="album_move_done">
+        <item quantity="one">Moved %1$d item to %2$s.</item>
+        <item quantity="other">Moved %1$d items to %2$s.</item>
+    </plurals>
+</resources>

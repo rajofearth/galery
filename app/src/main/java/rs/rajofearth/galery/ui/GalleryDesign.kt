@@ -10,11 +10,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import rs.rajofearth.galery.ui.theme.GalleryIcon
@@ -29,12 +33,17 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
 internal object GalleryDesign {
@@ -194,5 +203,47 @@ internal fun GallerySegment(
         contentAlignment = Alignment.Center,
     ) {
         GalleryText(label, modifier = Modifier.galleryPressMotion(interaction), color = textColor, style = GalleryTypography.labelLarge, maxLines = 1)
+    }
+}
+
+@Composable
+internal fun GalleryTabs(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    horizontalPadding: Dp = GalleryDesign.inset,
+) {
+    val indicator by animateFloatAsState(
+        selectedIndex.toFloat(),
+        GalleryDesign.effects(),
+        label = "Tab indicator",
+    )
+    Row(
+        Modifier.galleryPill()
+            .selectableGroup()
+            .width(IntrinsicSize.Max)
+            .padding(4.dp)
+            .drawBehind {
+                val segmentWidth = size.width / labels.size
+                val slot = if (layoutDirection == LayoutDirection.Ltr) indicator else labels.lastIndex - indicator
+                drawRoundRect(
+                    color = GalleryPalette.surfaceContainerHighest,
+                    topLeft = Offset(segmentWidth * slot, 0f),
+                    size = Size(segmentWidth, size.height),
+                    cornerRadius = CornerRadius(size.height / 2),
+                )
+            },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        labels.forEachIndexed { index, label ->
+            GallerySegment(
+                label,
+                index == selectedIndex,
+                { onSelect(index) },
+                Modifier.weight(1f),
+                horizontalPadding = horizontalPadding,
+                showIndicator = false,
+            )
+        }
     }
 }

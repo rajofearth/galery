@@ -1,13 +1,8 @@
 package rs.rajofearth.galery.ui
 
 import android.content.Intent
-import android.os.Build
-import android.os.SystemClock
-import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
@@ -35,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,87 +50,14 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.core.content.edit
 import androidx.core.net.toUri
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import rs.rajofearth.galery.R
 import rs.rajofearth.galery.data.GALERY_SOURCE_URL
-import rs.rajofearth.galery.data.GaleryRelease
-import rs.rajofearth.galery.data.ReleaseUpdater
 import rs.rajofearth.galery.ui.theme.GalleryIcon
 import rs.rajofearth.galery.ui.theme.GalleryPalette
 import rs.rajofearth.galery.ui.theme.GalleryText
 import rs.rajofearth.galery.ui.theme.GalleryTypography
-
-internal class GalleryUpdates(context: android.content.Context) {
-    private val prefs = context.getSharedPreferences("galery-updates", 0)
-    val updater = ReleaseUpdater(context)
-    val version by lazy { updater.versionName }
-    var automatic by mutableStateOf(prefs.getBoolean("automatic", true))
-        private set
-    var checking by mutableStateOf(false)
-        private set
-    var checked by mutableStateOf(false)
-        private set
-    var failed by mutableStateOf(false)
-        private set
-    var release by mutableStateOf<GaleryRelease?>(null)
-        private set
-    var downloading by mutableStateOf(false)
-    private var nextAutomaticCheck = 0L
-
-    fun timeUntilAutomaticCheck(): Long = nextAutomaticCheck - SystemClock.elapsedRealtime()
-
-    fun toggleAutomatic() {
-        automatic = !automatic
-        prefs.edit { putBoolean("automatic", automatic) }
-    }
-
-    suspend fun check(): Boolean {
-        if (checking) return false
-        checking = true
-        failed = false
-        return try {
-            val latest = updater.latest()
-            val changed = latest != null && latest != release
-            release = latest
-            checked = true
-            nextAutomaticCheck = SystemClock.elapsedRealtime() + 24 * 60 * 60 * 1000L
-            changed
-        } catch (error: CancellationException) {
-            throw error
-        } catch (_: Exception) {
-            failed = true
-            nextAutomaticCheck = SystemClock.elapsedRealtime() + 15 * 60 * 1000L
-            false
-        } finally {
-            checking = false
-        }
-    }
-}
-
-@Composable
-internal fun rememberGalleryUpdates(foreground: Boolean): GalleryUpdates {
-    val context = LocalContext.current
-    val updates = remember(context.applicationContext) { GalleryUpdates(context.applicationContext) }
-    LaunchedEffect(updates) { withContext(Dispatchers.IO) { updates.updater.discardStaleDownload() } }
-    val automatic = updates.automatic
-    LaunchedEffect(foreground, automatic) {
-        if (!foreground || !automatic) return@LaunchedEffect
-        while (true) {
-            delay(updates.timeUntilAutomaticCheck().coerceAtLeast(5_000))
-            if (updates.timeUntilAutomaticCheck() <= 0L && updates.check()) {
-                Toast.makeText(context, R.string.update_available_notice, Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-    return updates
-}
 
 private enum class SettingsPage(val nameRes: Int) {
     Settings(R.string.settings), About(R.string.about), Privacy(R.string.privacy_policy), Terms(R.string.terms_of_use),
@@ -148,53 +69,8 @@ internal fun GallerySettings(updates: GalleryUpdates, onClose: () -> Unit) {
     val scope = rememberCoroutineScope()
     val pageState = rememberSaveableStateHolder()
     var page by rememberSaveable { mutableStateOf(SettingsPage.Settings) }
-    var installing by rememberSaveable { mutableStateOf(false) }
-    var installPermissionNeeded by rememberSaveable { mutableStateOf(false) }
-    var installFailed by remember { mutableStateOf(false) }
-    val installer = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        installing = false
-        updates.updater.deleteDownload()
-    }
-
     fun goBack() {
         if (page == SettingsPage.Settings) onClose() else page = SettingsPage.Settings
-    }
-
-    fun install(release: GaleryRelease) {
-        if (updates.downloading || installing) return
-        installFailed = false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !context.packageManager.canRequestPackageInstalls()) {
-            try {
-                context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, "package:${context.packageName}".toUri()))
-                installPermissionNeeded = true
-            } catch (_: RuntimeException) {
-                installFailed = true
-            }
-            return
-        }
-        installPermissionNeeded = false
-        updates.downloading = true
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            var handedOff = false
-            try {
-                val uri = updates.updater.download(release)
-                installing = true
-                @Suppress("DEPRECATION")
-                val intent = Intent(Intent.ACTION_INSTALL_PACKAGE, uri)
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    .putExtra(Intent.EXTRA_RETURN_RESULT, true)
-                installer.launch(intent)
-                handedOff = true
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                installFailed = true
-                installing = false
-            } finally {
-                if (!handedOff) updates.updater.deleteDownload()
-                updates.downloading = false
-            }
-        }
     }
 
     BackHandler(onBack = ::goBack)
@@ -229,30 +105,25 @@ internal fun GallerySettings(updates: GalleryUpdates, onClose: () -> Unit) {
                     SettingsPage.Settings -> {
                         val release = updates.release
                         val status = when {
-                            updates.downloading -> stringResource(R.string.update_downloading)
-                            installing -> stringResource(R.string.update_installing)
-                            installFailed -> stringResource(R.string.update_install_failed)
                             updates.checking -> stringResource(R.string.update_checking)
                             updates.failed && release == null -> stringResource(R.string.update_check_failed)
-                            installPermissionNeeded && release != null -> stringResource(R.string.update_install_permission)
                             release != null -> stringResource(R.string.update_available, release.version)
                             updates.checked -> stringResource(R.string.update_up_to_date)
                             else -> stringResource(R.string.update_using_github)
                         }
                         AppIdentity(updates.version)
                         SettingsGroup(R.string.update_section) {
-                            val busy = updates.checking || updates.downloading || installing
+                            val busy = updates.checking
                             UpdateAction(
                                 status = status,
-                                warning = !busy && (installFailed || (updates.failed && release == null)),
-                                label = stringResource(if (release == null) R.string.update_check_now else R.string.update_download),
+                                warning = !busy && updates.failed && release == null,
+                                label = stringResource(if (release == null) R.string.update_check_now else R.string.update_view),
                                 enabled = !busy,
                                 onClick = {
                                     if (release == null) {
-                                        installFailed = false
                                         scope.launch { updates.check() }
                                     } else {
-                                        install(release)
+                                        updates.openOffer()
                                     }
                                 },
                             )
@@ -301,8 +172,13 @@ internal fun GallerySettings(updates: GalleryUpdates, onClose: () -> Unit) {
 
 @Composable
 private fun AppIdentity(version: String) {
+    AppIdentityLabel(stringResource(R.string.app_version, version), Modifier.padding(horizontal = GalleryDesign.gap))
+}
+
+@Composable
+internal fun AppIdentityLabel(detail: String, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = GalleryDesign.gap),
+        modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(GalleryDesign.separation),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -319,7 +195,7 @@ private fun AppIdentity(version: String) {
         Column {
             GalleryText(stringResource(R.string.app_name), style = GalleryTypography.titleLarge)
             GalleryText(
-                stringResource(R.string.app_version, version),
+                detail,
                 color = GalleryPalette.onSurfaceVariant,
                 style = GalleryTypography.bodyMedium,
             )
